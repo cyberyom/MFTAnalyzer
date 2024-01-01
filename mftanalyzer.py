@@ -232,17 +232,27 @@ def handle_path(providedpath):
                         continue
 
                     # Process specific attributes based on attr_type
-                    if attr_type == b'\x00\x00\x00\x10':  # Assuming this is the hex value for $STANDARD_INFORMATION
+                    if attr_type == b'\x10\x00\x00\x00':  # Assuming this is the hex value for $STANDARD_INFORMATION
                         all_tables += standard_info(hex_dump[current_offset:current_offset + attr_length])
                         if not first_attribute_processed:
                             first_attribute_processed = True  # Set the flag to True after processing the first attribute
 
-                    if attr_type == b'\x00\x00\x00\x30':  # Assuming this is the hex value for $FILE_NAME
+                    if attr_type == b'\x30\x00\x00\x00':  # Assuming this is the hex value for $FILE_NAME
                         all_tables += file_name(hex_dump[current_offset:current_offset + attr_length])
 
                     current_offset += attr_length
+                    
                 if first_attribute_processed:
-                    current_offset += 
+                    if current_offset + 8 > len(hex_dump):  # Check if the slice will go out of range
+                        break  # Exit the loop if it does
+
+                    attr_length_slice = hex_dump[current_offset+4:current_offset+8]
+                    if not attr_length_slice:  # Check if the slice is empty
+                        break  # Exit the loop or handle it as needed
+
+                    current_offset += int(bytes_to_hex(attr_length_slice), 16)
+
+
                     # For example: current_offset += some_value
 
             return all_tables.rstrip()
