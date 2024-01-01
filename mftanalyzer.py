@@ -92,12 +92,10 @@ def bytes_to_uint32(hex_str):
 
 
 def bytes_to_hex(byte_data):
-    # Reverse the byte_data list for little-endian order
-    byte_data_reversed = byte_data[::-1]
-
     # Convert each byte to a hex string and concatenate
-    hex_string = ''.join(format(int(byte, 16), '02X') for byte in byte_data_reversed if byte != '00')
+    hex_string = ''.join(format(int(byte, 16), '02X') for byte in byte_data)
     return hex_string
+
 
 def hex_to_uint(hex_str):
     try:
@@ -196,6 +194,7 @@ def MFT(argpath, target_bytes, length_bytes):
     except IOError:
         return ['Error reading the file.']
 
+
 def handle_path(providedpath):
     if os.path.exists(providedpath):
         target_bytes = b'\x46\x49\x4C\x45'
@@ -205,29 +204,48 @@ def handle_path(providedpath):
             all_tables = ""
 
             for hex_dump in all_hex_dumps:
-                if len(hex_dump) >= 6:
-                    print("File:")
-                    if b'\x46\x49\x4C\x45' in bytes.fromhex(''.join(hex_dump)):
-                        print(Entry_Header(hex_dump))
-                        standardinfo_offset = hex_to_short(''.join(hex_dump[20:22])) #grabs the value of net attribute offset and binds to new_offset
+                if len(hex_dump) < 22:
+                    all_tables += "Hex dump is too short to contain a valid MFT entry.\n"
+                    continue
 
-                    if bytes.fromhex(''.join(hex_dump[standardinfo_offset:standardinfo_offset+4])) == b'\x10\x00\x00\x00':
-                        print('      $Standard Information Attribute')
-                        standard_info(hex_dump[standardinfo_offset:])
-                        next_offset1 = standardinfo_offset + int(bytes_to_hex(hex_dump[standardinfo_offset+4:standardinfo_offset+8]), 16)
+                current_offset = hex_to_short(''.join(hex_dump[20:22]))
+                first_attribute_processed = False  # Flag to track if the first attribute has been processed
 
-                    if bytes.fromhex(''.join(hex_dump[next_offset1:next_offset1+4])) == b'\x20\x00\x00\x00':
-                        print('      $Attribute List Attribute')
+                while current_offset < len(hex_dump):
+                    if current_offset + 8 > len(hex_dump):
+                        all_tables += "Reached the end of hex dump before finding a complete attribute header.\n"
+                        break
 
-                    if bytes.fromhex(''.join(hex_dump[next_offset1:next_offset1+4])) == b'\x30\x00\x00\x00':
-                        print('      $File Name Attribute')
-                        file_name(hex_dump[])
+                    try:
+                        slice_hex_dump = hex_dump[current_offset:current_offset + 8]
+                        hex_string = bytes_to_hex(slice_hex_dump)
+                        attr_type = bytes.fromhex(hex_string[:8])
+                        attr_length = int(hex_string[8:], 16)
+                    except ValueError:
+                        all_tables += f"Invalid hexadecimal value encountered. Hex String: {hex_string}, Slice: {slice_hex_dump}, Current Offset: {current_offset}\n"
+                        current_offset += 1
+                        continue
 
+                    if attr_length == 0:
+                        all_tables += "Attribute length is zero. Moving to the next attribute.\n"
+                        current_offset += 1
+                        continue
 
-                else:
-                    all_tables += "Hex dump is too short.\n\n"
+                    # Process specific attributes based on attr_type
+                    if attr_type == b'\x00\x00\x00\x10':  # Assuming this is the hex value for $STANDARD_INFORMATION
+                        all_tables += standard_info(hex_dump[current_offset:current_offset + attr_length])
+                        if not first_attribute_processed:
+                            first_attribute_processed = True  # Set the flag to True after processing the first attribute
 
-            return all_tables.rstrip()  # Return all tables as a single string
+                    if attr_type == b'\x00\x00\x00\x30':  # Assuming this is the hex value for $FILE_NAME
+                        all_tables += file_name(hex_dump[current_offset:current_offset + attr_length])
+
+                    current_offset += attr_length
+                if first_attribute_processed:
+                    current_offset += 
+                    # For example: current_offset += some_value
+
+            return all_tables.rstrip()
         else:
             return "Target byte sequence not found." if all_hex_dumps == ["Target byte sequence not found."] else "Hex dump is too short."
     else:
@@ -275,7 +293,7 @@ def standard_info(hex_dump):
     table.add_row(["Security Identifier", ' '.join(hex_dump[76:80]), bytes_to_decimal(hex_dump[76:80])])
     table.add_row(["Quota Charged", ' '.join(hex_dump[80:88]), "Unknown"])
     table.add_row(["Update Sequence Number", ' '.join(hex_dump[88:96]), "Unknown"])
-    print(table)
+    return table.get_string() + "\n\n"
 
 
 def attirbute_list(hex_dump):
