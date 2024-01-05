@@ -32,9 +32,11 @@ def firstrun():
 
 def help():
     print("This tool has a few options available. \n")
-    print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.py C:\Path\To\MFTfile-----\n")
-    print("To export your results, use the -o flag.\n-----./MFTAnalyzer.py C:\Path\To\MFTfile -o C:\Desired\Path\To\Results-----\n")
-    print("To export your results to a CSV, pass the -csv flag (with the -o flag).\n-----./MFTAnalyzer.py C:\Path\To\MFT -csv -o C:\Desired\Path\To\Results.csv-----\n")
+    print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.py C:\\Path\\To\\MFTfile-----\n")
+    print("To export your results, use the -o flag.\n-----./MFTAnalyzer.py C:\\Path\\To\\MFTfile -o C:\\Desired\\Path\\To\\Results-----\n")
+    print("To export your results to a CSV, pass the -csv flag (with the -o flag).\n-----./MFTAnalyzer.py C:\\Path\\To\\MFT -csv -o C:\\Desired\\Path\\To\\Results.csv-----\n")
+
+
 
 def convert_hex_timestamp_to_datetime(hex_timestamp):
     try:
@@ -50,6 +52,13 @@ def convert_hex_timestamp_to_datetime(hex_timestamp):
         return converted_datetime
     except (ValueError, OverflowError):
         return "Invalid Timestamp"
+
+def extract_filename(hex_dump):
+    name_hex = []
+    for i in range(0, len(hex_dump), 2):
+        if hex_dump[i] != '00':
+            name_hex.append(hex_dump[i])
+    return hex_to_ascii(name_hex)
 
 def hex_to_ascii(hex_bytes):
     ascii_str = ''
@@ -92,12 +101,10 @@ def bytes_to_uint32(hex_str):
 
 
 def bytes_to_hex(byte_data):
-    # Reverse the byte_data list for little-endian order
-    byte_data_reversed = byte_data[::-1]
-
     # Convert each byte to a hex string and concatenate
-    hex_string = ''.join(format(int(byte, 16), '02X') for byte in byte_data_reversed if byte != '00')
+    hex_string = ''.join(format(int(byte, 16), '02X') for byte in byte_data)
     return hex_string
+
 
 def hex_to_uint(hex_str):
     try:
@@ -151,7 +158,42 @@ def dataflag(hex_dump):
     elif hex_dump[0] == '80':
         return "Is Sparse"
     else:
-        return "Unknown Attr. data flag bytes"
+        return "-"
+
+def file_attribute_flags(hex_dump):
+    if len(hex_dump) != 4:
+        return "Invalid input length for file attribute flags"
+
+    # Reverse the byte order for little-endian format
+    reversed_hex_dump = hex_dump[::-1]
+
+    # Combine the hex values into one string for easy comparison
+    flag_hex = ''.join(reversed_hex_dump)
+
+    # Define a mapping from the hex representation to the attribute description
+    attribute_flags = {
+        0x01000000: "Read-only",
+        0x02000000: "Hidden",
+        0x04000000: "System",
+        0x20000000: "Archive",
+        0x40000000: "Device",
+        0x80000000: "Normal",
+        0x00010000: "Temporary",
+        0x00020000: "Sparse file",
+        0x00040000: "Reparse point",
+        0x00080000: "Compressed",
+        0x00100000: "Offline",
+        0x00200000: "Not content indexed",
+        0x00400000: "Encrypted",
+        0x00800000: "Integrity stream",
+        0x00000100: "Virtual",
+        0x00000200: "No scrub data",
+        # Add more flags here as needed
+    }
+
+    return attribute_flags.get(flag_hex, "Unknown Attribute Flag")
+
+
 
 
 def timestamp_from_hex_dump(hex_dump):
@@ -165,80 +207,142 @@ def timestamp_from_hex_dump(hex_dump):
         # Otherwise, format the datetime object
         return datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
 
-def MFT(argpath, target_bytes, length_bytes):
+def MFT(argpath, target_bytes):
     outputs = []  # A list to store hex dumps for each occurrence
     try:
         with open(argpath, 'rb') as file:
             file_content = file.read()
-
-            # Search for all occurrences of target_bytes
             offset = 0
             while True:
-                offset = file_content.find(target_bytes, offset)
-                if offset == -1:
+                start_offset = file_content.find(target_bytes, offset)
+                if start_offset == -1:
                     break  # No more occurrences found
-
-                # Read bytes from each found location
-                file.seek(offset)
-                bytes_data = file.read(length_bytes)
+                logical_size_bytes = file_content[start_offset+24:start_offset+28]
+                logical_size = int.from_bytes(logical_size_bytes, byteorder='little')
+                entry_end = start_offset + logical_size
+                bytes_data = file_content[start_offset:entry_end]
                 hex_data = [f'{byte:02x}' for byte in bytes_data]
                 outputs.append(hex_data)
-
-                offset += len(target_bytes)  # Move to the next position
-
+                offset = entry_end
         if not outputs:
-            return ["Target byte sequence not found."]
-
+            return ["No MFT entries found."]
         return outputs  # Return the list of all hex dumps
-
     except FileNotFoundError:
         return ['File not found.']
     except IOError:
         return ['Error reading the file.']
 
+def determine_attribute_type(hex_dump, offset):
+    if offset + 4 > len(hex_dump):
+        return "Unknown"
+    attr_type_hex = ''.join(hex_dump[offset:offset+4])
+    attr_type_int = int(attr_type_hex, 16)
+    attr_type_map = {
+        0x10000000: '$STANDARD_INFORMATION',
+        0x20000000: '$ATTRIBUTE_LIST',
+        0x30000000: '$FILE_NAME',
+        0x40000000: '$OBJECT_ID',
+        0x50000000: '$SECURITY_DESCRIPTOR',
+        0x60000000: '$VOLUME_NAME',
+        0x70000000: '$VOLUME_INFORMATION',
+        0x80000000: '$DATA',
+        0x90000000: '$INDEX_ROOT',
+        0xa0000000: '$INDEX_ALLOCATION',
+        0xb0000000: '$BITMAP',
+        0xc0000000: '$REPARSE_POINT',
+        0xd0000000: '$EA_INFORMATION',
+        0xe0000000: '$EA',
+        0xf0000000: '$PROPERTY_SET',
+        0x00100000: '$LOGGED_UTILITY_STREAM',
+    }
+    return attr_type_map.get(attr_type_int, "Unknown")
+
+def update_offset(hex_dump, current_offset):
+    if current_offset + 8 > len(hex_dump):
+        return len(hex_dump)  # End of the hex dump
+    attr_length_hex = bytes_to_decimal(hex_dump[current_offset+4:current_offset+8])
+    return current_offset + attr_length_hex
+
 def handle_path(providedpath):
     if os.path.exists(providedpath):
-        target_bytes = b'\x46\x49\x4C\x45'
-        all_hex_dumps = MFT(providedpath, target_bytes, 1024)
+        target_bytes = b'\x46\x49\x4C\x45'  # FILE signature
+        all_hex_dumps = MFT(providedpath, target_bytes)
+        if not all_hex_dumps or all_hex_dumps == ["No MFT entries found."]:
+            return "No MFT entries found."
+        all_tables = ""
+        for hex_dump in all_hex_dumps:
+            entry_table = Entry_Header(hex_dump[0:]) 
+            logical_size = hex_to_uint(''.join(hex_dump[24:28]))
+            current_offset = hex_to_short(''.join(hex_dump[20:22]))
+            previous_offset = None
+            while current_offset < len(hex_dump) and current_offset < logical_size:
+                if current_offset == previous_offset:
+                    break
+                attr_type = determine_attribute_type(hex_dump, current_offset)
+                if attr_type != "Unknown":
+                    offset_info = f"    Attribute Type: {attr_type}, Current Offset: {current_offset} \n"
+                    entry_table += offset_info
+                    if attr_type == '$STANDARD_INFORMATION':
+                        entry_table += standard_info(hex_dump[current_offset:])
+                    elif attr_type == '$ATTRIBUTE_LIST':
+                        entry_table += attirbute_list(hex_dump[current_offset:])
+                    elif attr_type == '$FILE_NAME':
+                         namesize_hex = bytes_to_hex(hex_dump[current_offset+88:current_offset+89])
+                         #print(namesize_hex)
+                         namesize = int(namesize_hex, 16) * 2  # Multiply by 2 as each character is represented by 2 bytes
+                         filename_hex_dump = hex_dump[current_offset+90:current_offset+90+namesize]
+                         #print(filename_hex_dump)
+                         extracted_name = extract_filename(filename_hex_dump)
+                         #print(extracted_name)
+                          #Add the filename row
+                         entry_table += file_name(hex_dump[current_offset:])
+                    elif attr_type == '$VOLUME_VERSION':
+                        entry_table += volume_version(hex_dump[current_offset:])
+                    elif attr_type == '$OBJECT_ID':
+                        entry_table += object_id(hex_dump[current_offset:])
+                    elif attr_type == '$SECURITY_DESCRIPTOR':
+                        entry_table += security_descriptor(hex_dump[current_offset:])
+                    elif attr_type == "$VOLUME_NAME":
+                        entry_table += volume_name(hex_dump[current_offset:])
+                    elif attr_type == '$VOLUME_INFORMATION':
+                        entry_table += volume_information(hex_dump[current_offset:])
+                    elif attr_type == '$DATA':
+                        entry_table += data(hex_dump[current_offset:])
+                    elif attr_type == '$INDEX_ROOT':
+                        entry_table += index_root(hex_dump[current_offset:])
+                    elif attr_type == '$INDEX_ALLOCATION':
+                        entry_table += index_allocation(hex_dump[current_offset:])
+                    elif attr_type == '$BITMAP':
+                        entry_table += bitmap(hex_dump[current_offset:])
+                    elif attr_type == '$SYMBOLIC_LINK':
+                        entry_table += symbolic_link(hex_dump[current_offset])
+                    elif attr_type == '$REPARSE_POINT':
+                        entry_table += reparse_point(hex_dump[current_offset:])
+                    elif attr_type == '$EA_INFORMATION':
+                        entry_table =+ ea_information(hex_dump[current_offset])
+                    elif attr_type == '$EA':
+                        entry_table += ea(hex_dump[current_offset:])
+                    elif attr_type == 'PROPERTY_SET':
+                        entry_table += property_set(hex_dump[current_offset:])
+                    elif attr_type == '$LOGGED_UTILITY_STREAM':
+                        entry_table += logged_utility_stream(hex_dump[current_offset:])
 
-        if all_hex_dumps and all_hex_dumps != ["Target byte sequence not found."]:
-            all_tables = ""
+                previous_offset = current_offset
+                current_offset = update_offset(hex_dump, current_offset)
 
-            for hex_dump in all_hex_dumps:
-                if len(hex_dump) >= 6:
-                    print("File:")
-                    if b'\x46\x49\x4C\x45' in bytes.fromhex(''.join(hex_dump)):
-                        print(Entry_Header(hex_dump))
-                        standardinfo_offset = hex_to_short(''.join(hex_dump[20:22])) #grabs the value of net attribute offset and binds to new_offset
+            all_tables += entry_table + "\n\n"
 
-                    if bytes.fromhex(''.join(hex_dump[standardinfo_offset:standardinfo_offset+4])) == b'\x10\x00\x00\x00':
-                        print('      $Standard Information Attribute')
-                        standard_info(hex_dump[standardinfo_offset:])
-                        next_offset1 = standardinfo_offset + int(bytes_to_hex(hex_dump[standardinfo_offset+4:standardinfo_offset+8]), 16)
-
-                    if bytes.fromhex(''.join(hex_dump[next_offset1:next_offset1+4])) == b'\x20\x00\x00\x00':
-                        print('      $Attribute List Attribute')
-
-                    if bytes.fromhex(''.join(hex_dump[next_offset1:next_offset1+4])) == b'\x30\x00\x00\x00':
-                        print('      $File Name Attribute')
-                        file_name(hex_dump[])
-
-
-                else:
-                    all_tables += "Hex dump is too short.\n\n"
-
-            return all_tables.rstrip()  # Return all tables as a single string
-        else:
-            return "Target byte sequence not found." if all_hex_dumps == ["Target byte sequence not found."] else "Hex dump is too short."
+        print("Hi")
+        return all_tables.rstrip()
     else:
         return 'File not found.'
 
-
 def Entry_Header(hex_dump):
-    print('      Entry Header')
     table = PrettyTable()
     table.field_names = ["Title", "Raw Data", "Data"]
-
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
     table.add_row(["Signature", ' '.join(hex_dump[:4]),hex_to_ascii(hex_dump[:4])]) # Use the first 4 bytes for Signature
     table.add_row(["Update Sequence Offset", ' '.join(hex_dump[4:6]), hex_to_short(''.join(hex_dump[4:6]))])
     table.add_row(["Update Sequence Size", ' '.join(hex_dump[6:8]), hex_to_short(''.join(hex_dump[6:8]))])
@@ -255,6 +359,9 @@ def Entry_Header(hex_dump):
 def standard_info(hex_dump):
     table = PrettyTable()
     table.field_names = ["Title", "Raw Data", "Data"] #the tables start with generic attr header
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
     table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Standard Information"])
     table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
     table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
@@ -275,13 +382,15 @@ def standard_info(hex_dump):
     table.add_row(["Security Identifier", ' '.join(hex_dump[76:80]), bytes_to_decimal(hex_dump[76:80])])
     table.add_row(["Quota Charged", ' '.join(hex_dump[80:88]), "Unknown"])
     table.add_row(["Update Sequence Number", ' '.join(hex_dump[88:96]), "Unknown"])
-    print(table)
+    return table.get_string() + "\n"
 
 
 def attirbute_list(hex_dump):
-    print('      $Attribute List Attribute')
     table = PrettyTable()
     table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
     table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Attribute List"])
     table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
     table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
@@ -290,12 +399,12 @@ def attirbute_list(hex_dump):
     table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
     table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
 
-    print(table)
-
 def file_name(hex_dump):
-    print('      $Attribute List Attribute')
     table = PrettyTable()
     table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
     table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$File Name"])
     table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
     table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
@@ -303,8 +412,267 @@ def file_name(hex_dump):
     table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
     table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
     table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    table.add_row(["Parent MFT Reference", ' '.join(hex_dump[24:32]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[24:32])))])
+    table.add_row(["File Creation",' '.join(hex_dump[32:40]), filetime_to_dt(bytes([int(b, 16) for b in hex_dump[32:40]]))])
+    table.add_row(["File Modification",' '.join(hex_dump[40:48]), filetime_to_dt(bytes([int(b, 16) for b in hex_dump[40:48]]))])
+    table.add_row(["MFT Modification",' '.join(hex_dump[48:56]), filetime_to_dt(bytes([int(b, 16) for b in hex_dump[48:56]]))])
+    table.add_row(["File Accessed",' '.join(hex_dump[56:64]), filetime_to_dt(bytes([int(b, 16) for b in hex_dump[56:64]]))])
+    table.add_row(["Logical File Size", ' '.join(hex_dump[64:72]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[64:72])))])
+    table.add_row(["Physical File Size", ' '.join(hex_dump[72:80]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[72:80])))])
+    table.add_row(["Attribute Flags", ' '.join(hex_dump[80:84]), file_attribute_flags(hex_dump[80:84])]) # needs function
+    table.add_row(["Extended Attribute Data", ' '.join(hex_dump[84:88]), bytes_to_decimal(hex_dump[84:88])])
+    table.add_row(["File Name Size", ' '.join(hex_dump[88:89]), bytes_to_hex(hex_dump[88:89])]) #This is the length of the second to next table
+    table.add_row(["Namespace of File Name", ' '.join(hex_dump[89:90]), bytes_to_hex(hex_dump[89:90])])
+    namesize_hex = bytes_to_hex(hex_dump[88:89])
+    namesize = int(namesize_hex, 16) * 2  # Multiply by 2 as each character is represented by 2 bytes
+    filename_hex_dump = hex_dump[90:90+namesize]
+    extracted_name = extract_filename(filename_hex_dump)
+    table.add_row(["File Name", ' '.join(filename_hex_dump), extracted_name]) #Add the filename row
+    return table.get_string() + "\n"
 
-    print(table)
+def volume_version(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Volume Version"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    
+    return table.get_string() + "\n"
+
+def object_id(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Object ID"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def security_descriptor(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Security Descriptor"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+
+def volume_name(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Volume Name"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def volume_information(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Volume Information"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def data(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Data"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    if residency(hex_dump[8:9]) == "Nonresident":
+        table.add_row(["Starting Cluster Number", ' '.join(hex_dump[16:24]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[16:24])))])
+        table.add_row(["Ending Cluster Number", ' '.join(hex_dump[24:32]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[24:32])))])
+        table.add_row(["Datarun Offset", ' '.join(hex_dump[32:34]), hex_to_short(''.join(hex_dump[32:34]))])
+        table.add_row(["Logical File Size", ' '.join(hex_dump[40:48]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[40:48])))])
+        table.add_row(["Physical File Size", ' '.join(hex_dump[48:56]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[48:56])))])
+        table.add_row(["Initialized Size", ' '.join(hex_dump[56:64]), bytes_to_uint64(bytes.fromhex(''.join(hex_dump[56:64])))])
+   
+    elif residency(hex_dump[8:9]) == "Resident":
+        table.add_row(["File Content Length", ' '.join(hex_dump[16:20]), bytes_to_hex(hex_dump[16:20])])
+        table.add_row(["Offsent to Content", ' '.join(hex_dump[20:22]), hex_to_short(''.join(hex_dump[20:22]))])
+        filecontent_hex = bytes_to_hex(hex_dump[16:20])
+        filecontent = int(filecontent_hex, 16)
+        table.add_row(["File Content", ' '.join(hex_dump[24:24+filecontent]),hex_to_ascii(hex_dump[24:24+filecontent])])
+
+    return table.get_string() + "\n"
+
+def index_root(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Index Root"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+
+
+    return table.get_string() + "\n"
+
+def index_allocation(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Index Allocation"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def bitmap(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Bitmap"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def symbolic_link(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Symbolic Link"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def reparse_point(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Reparse Point"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def ea_information(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$EA Information"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def ea(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$EA"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def property_set(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Property Set"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
+
+def logged_utility_stream(hex_dump):
+    table = PrettyTable()
+    table.field_names = ["Title", "Raw Data", "Data"]
+    table.max_width["Title"] = 30
+    table.max_width["Raw Data"] = 60
+    table.max_width["Data"] = 30
+    table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Logged Utility Stream"])
+    table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), bytes_to_hex(hex_dump[4:8])])
+    table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), residency(hex_dump[8:9])])
+    table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+    table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), hex_to_short(''.join(hex_dump[10:12]))])
+    table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), dataflag(hex_dump[12:14])])
+    table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), hex_to_short(''.join(hex_dump[14:16]))])
+    return table.get_string() + "\n"
 
 def output_results(data, outputpath):
     try:
@@ -314,8 +682,9 @@ def output_results(data, outputpath):
     except IOError as e:
         print(f"An error occurred while writing to the file: {e}")
 
-# Script Execution
 
+
+# Script Execution
 if len(sys.argv) == 1:
     firstrun()
 elif '-h' in sys.argv:
