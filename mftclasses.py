@@ -337,24 +337,7 @@ class tablecreation:
 
         return table.get_string() + "\n"
 
-    def volume_information(self, hex_dump):
-        logic_instance = logic()
-        table = PrettyTable()
-        table.field_names = ["Title", "Raw Data", "Data"]
-        table.max_width["Title"] = 30
-        table.max_width["Raw Data"] = 60
-        table.max_width["Data"] = 30
-        table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Volume Information"])
-        table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
-        table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
-        table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
-        table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
-        table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
-
-        return table.get_string() + "\n"
-
-   
+    
     def volume_information(self, hex_dump):
         logic_instance = logic()
         table = PrettyTable()
