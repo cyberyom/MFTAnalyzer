@@ -35,19 +35,25 @@ class logic:
 
     def extract_filename(self, hex_dump):
         name_hex = []
+
         for i in range(0, len(hex_dump), 2):
             if hex_dump[i] != '00':
                 name_hex.append(hex_dump[i])
+
         return self.hex_to_ascii(name_hex)
 
     def hex_to_ascii(self, hex_bytes):
         ascii_str = ''
+
         for hex_byte in hex_bytes:
             byte_int = int(hex_byte, 16)
+
             if byte_int == 0:
                 ascii_str += ''
+
             else:
                 ascii_str += chr(byte_int) if 32 <= byte_int < 127 else '.'
+
         return ascii_str
 
     def hex_to_short(self, hex_str):
@@ -55,10 +61,12 @@ class logic:
             reversed_hex_str = ''.join(reversed([hex_str[i:i+2] for i in range(0, len(hex_str), 2)]))
 
             decimal_value = int(reversed_hex_str, 16)
+
             if decimal_value > 32767 or decimal_value < -32768:
                 return "Out of range for short"
 
             return decimal_value
+
         except (ValueError, OverflowError):
             return "Invalid Hex Value"
 
@@ -70,13 +78,13 @@ class logic:
     def bytes_to_uint32(self, hex_str):
         if not isinstance(hex_str, str):
             raise TypeError("Expected hex_str to be a string")
+
         byte_data = bytes.fromhex(hex_str)
         return int.from_bytes(byte_data, byteorder='little')
 
 
 
     def bytes_to_hex(self,byte_data):
-        # Convert each byte to a hex string and concatenate
         hex_string = ''.join(format(int(byte, 16), '02X') for byte in byte_data)
         return hex_string
 
@@ -86,10 +94,12 @@ class logic:
             reversed_hex_str = ''.join(reversed([hex_str[i:i+2] for i in range(0, len(hex_str), 2)]))
             
             decimal_value = int(reversed_hex_str, 16)
+
             if decimal_value < 0:
                 return "Negative value not allowed for uint"
 
             return decimal_value
+
         except (ValueError, OverflowError):
             return "Invalid Hex Value"
 
@@ -106,7 +116,6 @@ class logic:
     def residency(self, hex_dump):
         if len(hex_dump) != 1:
             return "Invalid input length"
-
         if hex_dump[0] == '00':
             return "Resident"
         elif hex_dump[0] == '01':
@@ -131,6 +140,7 @@ class logic:
     def file_attribute_flags(self, hex_dump):
         if len(hex_dump) != 4:
             return "Invalid input length for file attribute flags"
+
         reversed_hex_dump = hex_dump[::-1]
         flag_hex = ''.join(reversed_hex_dump)
         attribute_flags = {
@@ -151,16 +161,16 @@ class logic:
             0x00000100: "Virtual",
             0x00000200: "No scrub data",
         }
+
         return attribute_flags.get(flag_hex, "Unknown Attribute Flag")
 
 
 class tablecreation:
     def __init__(self):
         pass
-
-    @staticmethod
+        
     def Entry_Header(hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic() 
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -181,7 +191,7 @@ class tablecreation:
         return table.get_string() + "\n\n"
 
     def standard_info(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -211,7 +221,7 @@ class tablecreation:
 
 
     def attribute_list(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -255,13 +265,13 @@ class tablecreation:
         namesize = int(namesize_hex, 16) * 2  # Multiply by 2 as each character is represented by 2 bytes
         filename_hex_dump = hex_dump[90:90+namesize]
         extracted_name = logic_instance.extract_filename(filename_hex_dump)
-        table.add_row(["File Name", ' '.join(filename_hex_dump), extracted_name])  # Add the filename row
+        table.add_row(["File Name", ' '.join(filename_hex_dump), extracted_name]) 
 
         return table.get_string() + "\n"
 
   
     def volume_version(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -278,7 +288,7 @@ class tablecreation:
 
     
     def object_id(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -294,7 +304,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def security_descriptor(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -311,7 +321,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def volume_name(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -328,7 +338,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def volume_information(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -346,7 +356,7 @@ class tablecreation:
 
    
     def volume_information(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -364,7 +374,7 @@ class tablecreation:
 
 
     def data(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -379,7 +389,6 @@ class tablecreation:
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
         if logic_instance.residency(hex_dump[8:9]) == "Nonresident":
-            # Nonresident attributes
             table.add_row(["Starting Cluster Number", ' '.join(hex_dump[16:24]), logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[16:24])))])
             table.add_row(["Ending Cluster Number", ' '.join(hex_dump[24:32]), logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[24:32])))])
             table.add_row(["Datarun Offset", ' '.join(hex_dump[32:34]), logic_instance.hex_to_short(''.join(hex_dump[32:34]))])
@@ -388,7 +397,6 @@ class tablecreation:
             table.add_row(["Initialized Size", ' '.join(hex_dump[56:64]), logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[56:64])))])
        
         elif logic_instance.residency(hex_dump[8:9]) == "Resident":
-            # Resident attributes
             filecontent_hex = logic_instance.bytes_to_hex(hex_dump[16:20])
             filecontent = int(filecontent_hex, 16)
             table.add_row(["File Content Length", ' '.join(hex_dump[16:20]), filecontent_hex])
@@ -399,7 +407,7 @@ class tablecreation:
 
 
     def index_root(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -416,7 +424,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def index_allocation(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -433,7 +441,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def bitmap(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -450,7 +458,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def reparse_point(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -467,7 +475,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def ea_information(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -484,7 +492,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def ea(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -501,7 +509,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def property_set(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic() 
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
@@ -518,7 +526,7 @@ class tablecreation:
         return table.get_string() + "\n"
 
     def logged_utility_stream(self, hex_dump):
-        logic_instance = logic()  # Create an instance of the logic class
+        logic_instance = logic()  
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
         table.max_width["Title"] = 30
