@@ -5,6 +5,7 @@ as well as the logic behind the raw data conversion to readable data
 from datetime import datetime, timedelta
 import struct
 from prettytable import PrettyTable
+import csv
 
 
 class logic:
@@ -55,6 +56,34 @@ class logic:
                 ascii_str += chr(byte_int) if 32 <= byte_int < 127 else '.'
 
         return ascii_str
+
+    def find_file_name_offset(self, hex_dump):
+        offset = 0
+        file_name_attr_type = 0x30000000  # Attribute type for $FILE_NAME
+
+        while offset < len(hex_dump):
+            # Convert the next 4 bytes to an integer to get the attribute type
+            if offset + 4 > len(hex_dump):
+                break  # Prevents reading past the end of the list
+
+            attr_type_hex = ''.join(hex_dump[offset:offset+4])
+            attr_type_int = int(attr_type_hex, 16)
+
+            if attr_type_int == file_name_attr_type:
+                return offset  # Return the offset if it's a $FILE_NAME attribute
+
+            # Update offset to the next attribute
+            # This assumes each attribute is at least 8 bytes long
+            # and the attribute length is stored in bytes 4-7
+            if offset + 8 > len(hex_dump):
+                break  # Prevents reading past the end of the list
+
+            attr_length_hex = ''.join(hex_dump[offset+4:offset+8])
+            attr_length = int(attr_length_hex, 16)
+            offset += attr_length
+
+        return None  # Return None if no $FILE_NAME attribute is found
+
 
     def hex_to_short(self, hex_str):
         try:
@@ -168,8 +197,15 @@ class logic:
 class tablecreation:
     def __init__(self):
         pass
-        
-    def Entry_Header(hex_dump):
+
+    def export_to_csv(self, table, filename):
+        with open(filename, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(table.field_names)
+            for row in table:
+                csvwriter.writerow(row)
+
+    def Entry_Header(self, hex_dump):
         logic_instance = logic() 
         table = PrettyTable()
         table.field_names = ["Title", "Raw Data", "Data"]
@@ -188,7 +224,7 @@ class tablecreation:
         table.add_row(["Physical Size of Record", ' '.join(hex_dump[28:32]), logic_instance.hex_to_uint(''.join(hex_dump[28:32]))])
         table.add_row(["Base Record", ' '.join(hex_dump[32:40]), logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[32:40])))])
         
-        return table.get_string() + "\n\n"
+        return table
 
     def standard_info(self, hex_dump):
         logic_instance = logic()
@@ -217,7 +253,7 @@ class tablecreation:
         table.add_row(["Quota Charged", ' '.join(hex_dump[80:88]), "Unknown"])
         table.add_row(["Update Sequence Number", ' '.join(hex_dump[88:96]), "Unknown"])
 
-        return table.get_string() + "\n"
+        return table
 
 
     def attribute_list(self, hex_dump):
@@ -235,7 +271,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
 
     def file_name(self, hex_dump):
@@ -267,7 +303,7 @@ class tablecreation:
         extracted_name = logic_instance.extract_filename(filename_hex_dump)
         table.add_row(["File Name", ' '.join(filename_hex_dump), extracted_name]) 
 
-        return table.get_string() + "\n"
+        return table
 
   
     def volume_version(self, hex_dump):
@@ -284,7 +320,7 @@ class tablecreation:
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
-        return table.get_string() + "\n"
+        return table
 
     
     def object_id(self, hex_dump):
@@ -301,7 +337,7 @@ class tablecreation:
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
-        return table.get_string() + "\n"
+        return table
 
     def security_descriptor(self, hex_dump):
         logic_instance = logic()
@@ -318,7 +354,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def volume_name(self, hex_dump):
         logic_instance = logic()
@@ -335,9 +371,8 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
-    
     def volume_information(self, hex_dump):
         logic_instance = logic()
         table = PrettyTable()
@@ -353,7 +388,25 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
+
+   
+    def volume_information(self, hex_dump):
+        logic_instance = logic()
+        table = PrettyTable()
+        table.field_names = ["Title", "Raw Data", "Data"]
+        table.max_width["Title"] = 30
+        table.max_width["Raw Data"] = 60
+        table.max_width["Data"] = 30
+        table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Volume Information"])
+        table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
+        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
+        table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
+        table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
+        table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
+
+        return table
 
 
     def data(self, hex_dump):
@@ -386,7 +439,7 @@ class tablecreation:
             table.add_row(["Offsent to Content", ' '.join(hex_dump[20:22]), logic_instance.hex_to_short(''.join(hex_dump[20:22]))])
             table.add_row(["File Content", ' '.join(hex_dump[24:24+filecontent]), logic_instance.hex_to_ascii(hex_dump[24:24+filecontent])])
 
-        return table.get_string() + "\n"
+        return table
 
 
     def index_root(self, hex_dump):
@@ -404,7 +457,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def index_allocation(self, hex_dump):
         logic_instance = logic()
@@ -421,7 +474,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def bitmap(self, hex_dump):
         logic_instance = logic()
@@ -438,7 +491,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def reparse_point(self, hex_dump):
         logic_instance = logic()
@@ -455,7 +508,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def ea_information(self, hex_dump):
         logic_instance = logic()
@@ -472,7 +525,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def ea(self, hex_dump):
         logic_instance = logic()
@@ -489,7 +542,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def property_set(self, hex_dump):
         logic_instance = logic() 
@@ -506,7 +559,7 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
 
     def logged_utility_stream(self, hex_dump):
         logic_instance = logic()  
@@ -523,4 +576,4 @@ class tablecreation:
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
 
-        return table.get_string() + "\n"
+        return table
