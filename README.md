@@ -61,6 +61,7 @@ To export your results to a CSV, pass the --csv flag.
 Before you begin, ensure you have met the following requirements:
 - Requirement 1: Make sure that the $MFT file you are analyzing is from an NTFS version 3 + system. Tool is incompatiable with < NTFS 3.0
 - Requirement 2: You are on a 64 bit system
+- Requirement 3: If you are running from source code, you will need the python module Pretty Table installed. 
 
 ### Installation
 
