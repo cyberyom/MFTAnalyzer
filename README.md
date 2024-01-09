@@ -25,6 +25,8 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rela
 
 ## Getting Started
 ```
+ .\MFTAnalyzer.exe -h
+
         M   M  FFFFF  TTTTT
         MM MM  F        T
         M M M  FFF      T
@@ -52,6 +54,7 @@ To export your results, use the -o flag.
 
 To export your results to a CSV, pass the --csv flag.
 -----./MFTAnalyzer.exe C:\Path\To\MFT --csv -----
+
 ```
 ### Prerequisites
 
