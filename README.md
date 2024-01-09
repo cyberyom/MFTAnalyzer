@@ -84,7 +84,7 @@ $ pyinstaller MFTAnalyzer.py --onefile
 
 
 ### First Run
-Upon simply running the rool by itself, without passing any flags, you will get a simple about screen. 
+Upon simply running the tool by itself, without passing any flags, you will get a simple about screen. 
 ```
 $ .\MFTAnalyzer.exe
 
