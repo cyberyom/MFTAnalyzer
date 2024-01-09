@@ -16,10 +16,10 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rela
 ### Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- Requirement 1 (e.g., Operating System, dependencies)
-- Requirement 2
+- Requirement 1: Make sure that the $MFT file you are analyzing is from an NTFS version 3 + system. Tool is incompatiable with < NTFS 3.0
+- Requirement 2: You are on a 64 bit system
 
-### Installation and First Run
+### Installation
 
 To install MFTAnalyzer, follow these steps:
 
