@@ -65,5 +65,6 @@ Before you begin, ensure you have met the following requirements:
 ### Installation
 
 To install MFTAnalyzer, follow these steps:
+#### From Source
 
 
