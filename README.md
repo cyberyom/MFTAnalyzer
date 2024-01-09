@@ -1,9 +1,25 @@
-tool in process of development
+# MFTAnalyzer
 
-Tool is a CLI tool
+MFTAnalyzer is a powerful tool designed for [describe the main purpose or functionality of your tool]. It's built with [mention the technologies used, if relevant] and is perfect for [describe the target audience or typical use cases].
 
-You run the tool like: ./MFTAnalyzer C:\Path\To\MFT
+## Features
 
-the -o option can export: ./MFTAnalyzer C:\Path\To\MFT C:\Path\To\Output.txt
+- **Feature 1:** Description of feature 1.
+- **Feature 2:** Description of feature 2.
+- **Feature 3:** Description of feature 3.
+- More features listed here.
 
-Please use absolute paths for the MFT input
+## Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have met the following requirements:
+- Requirement 1 (e.g., Operating System, dependencies)
+- Requirement 2
+
+### Installation
+
+To install MFTAnalyzer, follow these steps:
+
+Linux and macOS:
+
