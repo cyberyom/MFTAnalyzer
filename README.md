@@ -25,7 +25,7 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rela
 
 ## Getting Started
 ```
- .\MFTAnalyzer.exe -h
+ $ .\MFTAnalyzer.exe -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
@@ -86,7 +86,7 @@ $ pyinstaller MFTAnalyzer.py --onefile
 ### First Run
 Upon simply running the rool by itself, without passing any flags, you will get a simple about screen. 
 ```
-.\MFTAnalyzer.exe
+$ .\MFTAnalyzer.exe
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
