@@ -1,13 +1,15 @@
 # MFTAnalyzer
 
-MFTAnalyzer is a powerful tool designed for [describe the main purpose or functionality of your tool]. It's built with [mention the technologies used, if relevant] and is perfect for [describe the target audience or typical use cases].
+MFTAnalyzer is a powerful tool designed for parsing and displaying metadata relavant to an MFT file. It also has the abilities to directly work with disk images for various tasks such as file carving and more. It's built with python 3.11.6 and is perfect for analyzing MFT files, as well as using MFT information to do other actions. 
 
 ## Features
 
-- **Feature 1:** Description of feature 1.
-- **Feature 2:** Description of feature 2.
-- **Feature 3:** Description of feature 3.
-- More features listed here.
+- **Feature 1:** By simply passing the tool an MFT file, it will generate tables for all relavant data from each and every MFT entry found. (COMPLETE)
+- **Feature 2:** By passing the <-s> flag, one will be able to search for specific file entries, using the file name as the search term. (COMPLETE) 
+- **Feature 3:** Tool is able to recreate file structure of whole disk, or specific folders. (NOT STARTED)
+- **Feature 4:** Tool is capable of carving files in the MFT. For resident files, it just pulls the data from the MFT. For non-resident files, it will need to have a disk image passed, so the file can be carved.
+- **Feature 5:** This tool has multiple options for exporting results. Currently, you can export tables to a txt file, or export results to a CSV file.
+- **More to come...**
 
 ## Getting Started
 
@@ -17,9 +19,8 @@ Before you begin, ensure you have met the following requirements:
 - Requirement 1 (e.g., Operating System, dependencies)
 - Requirement 2
 
-### Installation
+### Installation and First Run
 
 To install MFTAnalyzer, follow these steps:
 
-Linux and macOS:
 
