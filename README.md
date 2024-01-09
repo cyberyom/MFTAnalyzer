@@ -66,5 +66,21 @@ Before you begin, ensure you have met the following requirements:
 
 To install MFTAnalyzer, follow these steps:
 #### From Source
+1) Pull the repo down
+2) Install pyinstaller (tool used for compilation of python scripts)
+```
+$ python -m pip install pyinstaller
+```
+3) Compile program
+```
+$ pyinstaller MFTAnalyzer.py --onefile
+```
+4) Done!
+
+#### From Github
+1) Navigate to [here](https://github.com/cyberyom/MFTAnalyzer/releases)
+2) Download the compiled copy for your OS. Note that currently, only 64 bit systems are supported
+3) Navigate to file and done!
+
 
 
