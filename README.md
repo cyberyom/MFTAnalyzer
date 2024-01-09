@@ -83,4 +83,36 @@ $ pyinstaller MFTAnalyzer.py --onefile
 3) Navigate to file and done!
 
 
+### First Run
+Upon simply running the rool by itself, without passing any flags, you will get a simple about screen. 
+```
+.\MFTAnalyzer.exe
+
+        M   M  FFFFF  TTTTT
+        MM MM  F        T
+        M M M  FFF      T
+        M   M  F        T
+        M   M  F        T
+
+AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ  EEEEE  RRRRR
+A   A  NN  N  A   A  L      Y Y      Z    E      R   R
+AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR
+A   A  N  NN  A   A  L       Y     Z      E      R R
+A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
+      by CyberYom
+
+
+Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata.
+Passing -h will display a help menu.
+```
+Passing -h will show you all of the options available to you. Note, the first argument you pass should be the **absolute path** to the target MFT file. 
+
+## Special Thanks
+The development of this project would not be possible without the help of the following individuals. Their contributions are greatly appreciated.
+- Ali Hadi, Champlain College.
+- Solomon Ince, Freelance.
+- Amy Keigwin, Champlain College
+- [Documentation](https://github.com/libyal/libfsntfs/blob/main/documentation/New%20Technologies%20File%20System%20(NTFS).asciidoc)
+
+
 
