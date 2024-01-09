@@ -59,30 +59,22 @@ class logic:
 
     def find_file_name_offset(self, hex_dump):
         offset = 0
-        file_name_attr_type = 0x30000000  # Attribute type for $FILE_NAME
-
+        file_name_attr_type = 0x30000000 
         while offset < len(hex_dump):
-            # Convert the next 4 bytes to an integer to get the attribute type
             if offset + 4 > len(hex_dump):
-                break  # Prevents reading past the end of the list
-
+                break  
             attr_type_hex = ''.join(hex_dump[offset:offset+4])
             attr_type_int = int(attr_type_hex, 16)
 
             if attr_type_int == file_name_attr_type:
-                return offset  # Return the offset if it's a $FILE_NAME attribute
-
-            # Update offset to the next attribute
-            # This assumes each attribute is at least 8 bytes long
-            # and the attribute length is stored in bytes 4-7
+                return offset 
             if offset + 8 > len(hex_dump):
-                break  # Prevents reading past the end of the list
-
+                break  
             attr_length_hex = ''.join(hex_dump[offset+4:offset+8])
             attr_length = int(attr_length_hex, 16)
             offset += attr_length
 
-        return None  # Return None if no $FILE_NAME attribute is found
+        return None 
 
 
     def hex_to_short(self, hex_str):
@@ -298,7 +290,7 @@ class tablecreation:
         table.add_row(["Attribute Flags", ' '.join(hex_dump[80:84]), logic_instance.file_attribute_flags(hex_dump[80:84])])
         table.add_row(["Extended Attribute Data", ' '.join(hex_dump[84:88]), logic_instance.bytes_to_decimal(hex_dump[84:88])])
         namesize_hex = logic_instance.bytes_to_hex(hex_dump[88:89])
-        namesize = int(namesize_hex, 16) * 2  # Multiply by 2 as each character is represented by 2 bytes
+        namesize = int(namesize_hex, 16) * 2 
         filename_hex_dump = hex_dump[90:90+namesize]
         extracted_name = logic_instance.extract_filename(filename_hex_dump)
         table.add_row(["File Name", ' '.join(filename_hex_dump), extracted_name]) 
