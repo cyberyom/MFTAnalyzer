@@ -5,7 +5,6 @@
         M M M  FFF      T
         M   M  F        T
         M   M  F        T
-
 AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ  EEEEE  RRRRR
 A   A  NN  N  A   A  L      Y Y      Z    E      R   R
 AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR
