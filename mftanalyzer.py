@@ -97,7 +97,7 @@ def handle_path(providedpath, search_name=None, export_csv=False):
             logical_size = logic_instance.hex_to_uint(''.join(hex_dump[24:28]))
             current_offset = logic_instance.hex_to_short(''.join(hex_dump[20:22]))
             previous_offset = None
-            entry_table = ""  # Initialize entry_table as an empty string
+            entry_table = "" 
 
             while current_offset < len(hex_dump) and current_offset < logical_size:
                 if current_offset == previous_offset:
@@ -126,8 +126,6 @@ def handle_path(providedpath, search_name=None, export_csv=False):
                 if attr_type != "Unknown":
                     offset_info = f"    Attribute Type: {attr_type}, Current Offset: {current_offset} \n"
                     entry_table += offset_info
-
-                    # Ensure each method call returns a PrettyTable, then get its string representation
                     if attr_type == '$STANDARD_INFORMATION':
                         si_table = tablecreation_instance.standard_info(hex_dump[current_offset:])
                         all_pretty_tables.append(si_table)
@@ -145,7 +143,7 @@ def handle_path(providedpath, search_name=None, export_csv=False):
                         all_pretty_tables.append(fn_table)
                         entry_table += fn_table.get_string() + "\n"
                         namesize_hex = logic_instance.bytes_to_hex(hex_dump[current_offset+88:current_offset+89])
-                        namesize = int(namesize_hex, 16) * 2  # Multiply by 2 as each character is represented by 2 bytes
+                        namesize = int(namesize_hex, 16) * 2 
                         filename_hex_dump = hex_dump[current_offset+90:current_offset+90+namesize]
                         extracted_name = logic_instance.extract_filename(filename_hex_dump)
 
@@ -237,7 +235,7 @@ def handle_path(providedpath, search_name=None, export_csv=False):
             else:
                 all_tables += "\033[91m     Entry Header for File: Entry without a name\n \033[0m"
 
-            all_tables += pretty_table.get_string() + "\n\n"  # Add entry header table to all_tables
+            all_tables += pretty_table.get_string() + "\n\n" 
             all_tables += entry_table  
 
         if export_csv:
@@ -261,15 +259,13 @@ def export_to_csv(tables, filename):
     with open(filename, 'w', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
         for table in tables:
-            # Write the headers
             csvwriter.writerow(table.field_names)
-            # Write the rows
             for row in table._rows:
                 csvwriter.writerow(row)
 
 
 
-# Script Execution
+
 print("\033[91m" + """
         M   M  FFFFF  TTTTT  
         MM MM  F        T    
@@ -289,11 +285,10 @@ def firstrun():
 
 def help():
     print("This tool has a few options available. \n")
-    print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.py C:\\Path\\To\\MFTfile-----\n")
-    print("To export your results, use the -o flag.\n-----./MFTAnalyzer.py C:\\Path\\To\\MFTfile -o C:\\Desired\\Path\\To\\Results-----\n")
-    print("To export your results to a CSV, pass the -csv flag (with the -o flag).\n-----./MFTAnalyzer.py C:\\Path\\To\\MFT -csv -o C:\\Desired\\Path\\To\\Results.csv-----\n")
-
-
+    print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile-----\n")
+    print("To search for specific file entries, pass the -s flag, along with the string to search for.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT -s testfile -----\n")
+    print("To export your results, use the -o flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile -o C:\\Desired\\Path\\To\\Results.txt-----\n")
+    print("To export your results to a CSV, pass the --csv flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT --csv -----\n")
 
 
 
