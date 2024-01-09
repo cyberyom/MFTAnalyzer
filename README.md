@@ -1,19 +1,16 @@
 # MFTAnalyzer
 ```
-<pre>
-        <span style="color: red;">M   M  FFFFF  TTTTT</span>
-        <span style="color: red;">MM MM  F        T</span>
-        <span style="color: red;">M M M  FFF      T</span>
-        <span style="color: red;">M   M  F        T</span>
-        <span style="color: red;">M   M  F        T</span>
-AAAAA  N   N  AAAAA  L     Y   Y  <span style="color: green;">ZZZZZ  EEEEE  RRRRR</span>
-A   A  NN  N  A   A  L      Y Y      <span style="color: green;">Z    E      R   R</span>
-AAAAA  N N N  AAAAA  L       Y      <span style="color: green;">Z     EEEE   RRRR</span>
-A   A  N  NN  A   A  L       Y     <span style="color: green;">Z      E      R R</span>
-A   A  N   N  A   A  LLLLL   Y     <span style="color: green;">ZZZZZ  EEEEE  R  RR</span>
+        M   M  FFFFF  TTTTT
+        MM MM  F        T
+        M M M  FFF      T
+        M   M  F        T
+        M   M  F        T
+AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ  EEEEE  RRRRR
+A   A  NN  N  A   A  L      Y Y      Z    E      R   R
+AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR
+A   A  N  NN  A   A  L       Y     Z      E      R R
+A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
       by CyberYom
-</pre>
-
 ```
 MFTAnalyzer is a powerful tool designed for parsing and displaying metadata relavant to an MFT file. It also has the abilities to directly work with disk images for various tasks such as file carving and more. It's built with python 3.11.6 and is perfect for analyzing MFT files, as well as using MFT information to do other actions. 
 
