@@ -29,7 +29,7 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rela
  
 ## Getting Started
 ```
-$ MFTAnalyzer.exe -h
+$ ./MFTAnalyzer.exe -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
