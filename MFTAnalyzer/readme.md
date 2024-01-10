@@ -1,5 +1,5 @@
 ```
-C:\Users\clafl\Documents\code\mft parser>python MFTAnalyzer.py -h
+$ ./MFTAnalyzer.exe-h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
