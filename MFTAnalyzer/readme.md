@@ -1,5 +1,5 @@
 ```
- $ .\MFTAnalyzer.exe -h
+C:\Users\clafl\Documents\code\mft parser>python MFTAnalyzer.py -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
@@ -14,18 +14,37 @@ A   A  N  NN  A   A  L       Y     Z      E      R R
 A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
       by CyberYom
 
++------------------------------------+ Help Page +------------------------------------+
 
-This tool has a few options available.
+Info:
+| This tool is meant to gather and parse data from the NTFS file $MTF.
+| It is intended to display results of all data in table format,
+| offering both readable and raw data.
 
-For simply parsing an MFT file, pass the location of the MFT file.
------./MFTAnalyzer.exe C:\Path\To\MFTfile-----
+| To parse an MFT file, simple pass an MFT file to the tool
+└───────./MFTAnalyzer.exe C:\path\to\$MFT
 
-To search for specific file entries, pass the -s flag, along with the string to search for.
------./MFTAnalyzer.exe C:\Path\To\MFT -s testfile -----
 
-To export your results, use the -o flag.
------./MFTAnalyzer.exe C:\Path\To\MFTfile -o C:\Desired\Path\To\Results.txt-----
+Flags:
+| -s
+└───────./MFTAnalyzer.exe $MFT -s filename
+        - Search for a specific file entry based off file name
 
-To export your results to a CSV, pass the --csv flag.
------./MFTAnalyzer.exe C:\Path\To\MFT --csv -----
+| -o C:\path\to\output.txt
+└───────./MFTAnalyzer.exe $MFT -o output.txt
+        - Output the results to a text file
+
+| --csv
+└───────./MFTAnalyzer.exe $MFT --csv
+        - Output the results to csv format
+
+
+Additional help:
+|Support:
+└───────https://github.com/cyberyom/MFTAnalyzer/issues
+
+
+Version: 0.0.3
+Author: CyberYom
+https://github.com/cyberyom/MFTAnalyzer
 ```
