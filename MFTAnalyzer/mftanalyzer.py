@@ -265,8 +265,29 @@ def export_to_csv(tables, filename):
 
 
 
+if any(arg.startswith('-f') for arg in sys.argv):
+    print("""[91m
+        M   M  FFFFF  TTTTT  
+        MM MM  F        T    
+        M M M  FFF      T    
+        M   M  F        T    
+        M   M  F        T    
+[92m
+AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ  EEEEE  RRRRR  
+A   A  NN  N  A   A  L      Y Y      Z    E      R   R 
+AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
+A   A  N  NN  A   A  L       Y     Z      E      R R   
+A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR 
 
-print("\033[91m" + """
+[0m    by CyberYom[94m    fff ooo rrr  eee nnn  sss ii  cc  sss  
+                   f   o o r  r e   n n  s   ii c   s    
+                   fff o o rrr  ee  n n   ss ii  c    ss  
+                   f   o o r r  e   n n     s ii c      s 
+                   f   ooo r  r eee n n  sss ii  cc  sss 
+[0m""")
+
+else:
+    print("\033[91m" + """
         M   M  FFFFF  TTTTT  
         MM MM  F        T    
         M M M  FFF      T    
@@ -284,12 +305,27 @@ def firstrun():
     print('Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu.' + '\n\n')
 
 def help():
+    print("+------------------------------------+ Help Page +------------------------------------+\n")
     print("This tool has a few options available. \n")
     print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile-----\n")
     print("To search for specific file entries, pass the -s flag, along with the string to search for.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT -s testfile -----\n")
     print("To export your results, use the -o flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile -o C:\\Desired\\Path\\To\\Results.txt-----\n")
     print("To export your results to a CSV, pass the --csv flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT --csv -----\n")
+    print("To view the forensic module help page, pass the -fh flag.\n-----./MFTAnalyzer.exe -fh -----\n")
+    print("+-------------------------------------------------------------------------------------+\n")
 
+def fhelp():
+    print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
+    print("The forensic modules offer a number of helpful forensic information gathered and processed from the MFT.\n")
+    print("All of these flags are prefixed with 'f'\n\n")
+    print("To pass the offsets of specific files, use the -fo flag.\n ----- ./MFTAnalyzer.exe $MFT -s file.txt -fo\n")
+    print("There are multiple options to list the file structure.")
+    print("     To list the file structure for the entire disk, pass the --ffs-all flag.")
+    print("     To list file structure from a certain file from a certain file, pass --ffs-flag")
+    print("-----./MFTAnalyzer.exe $MFT --ffs-all-----\n-----./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag-----\n")
+    print("To list the contents of a folder, pass the -fls flag.\n-----./MFTAnalyzer.exe $MFT -s directory -fls-----\n") 
+
+    print("+-------------------------------------------------------------------------------------+\n")
 
 
 
@@ -305,6 +341,10 @@ def main():
 
     if '-h' in sys.argv:
         help()
+        sys.exit(0)
+
+    if '-fh' in sys.argv:
+        fhelp()
         sys.exit(0)
 
     if '-s' in sys.argv:
@@ -326,6 +366,7 @@ def main():
             if o_index + 1 < len(sys.argv):
                 output_path = sys.argv[o_index + 1]
             else:
+
                 print("No output path provided after -o.")
                 sys.exit(1)
         except ValueError:
