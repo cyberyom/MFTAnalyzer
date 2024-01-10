@@ -86,6 +86,7 @@ def handle_path(providedpath, search_name=None, export_csv=False):
             return "No MFT entries found."
 
         all_tables = ""
+        entry_count = 0 
         all_pretty_tables = []
         tablecreation_instance = tablecreation()
 
@@ -223,6 +224,8 @@ def handle_path(providedpath, search_name=None, export_csv=False):
                 previous_offset = current_offset
                 current_offset = update_offset(hex_dump, current_offset)
 
+            entry_count += 1 
+
             if search_name and not extracted_name:
                 continue
             
@@ -241,7 +244,9 @@ def handle_path(providedpath, search_name=None, export_csv=False):
         if export_csv:
             export_to_csv(all_pretty_tables, f"{providedpath}_exported.csv")
 
-        return all_tables.rstrip()
+        summary_string = f"\nTotal number of MFT entries processed: {entry_count}"
+        header = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└----------------------------------------------------------------------------\n\n"
+        return header + all_tables.rstrip() + summary_string
     else:
         return 'File not found.'
 
@@ -278,8 +283,8 @@ A   A  NN  N  A   A  L      Y Y      Z    E      R   R
 AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
 A   A  N  NN  A   A  L       Y     Z      E      R R   
 A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR 
-
-[0m    by CyberYom[94m    fff ooo rrr  eee nnn  sss ii  cc  sss  
+[0m      by CyberYom
+[94m                   fff ooo rrr  eee nnn  sss ii  cc  sss  
                    f   o o r  r e   n n  s   ii c   s    
                    fff o o rrr  ee  n n   ss ii  c    ss  
                    f   o o r r  e   n n     s ii c      s 
@@ -299,7 +304,7 @@ A   A  NN  N  A   A  L      Y Y      Z    E      R   R
 AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
 A   A  N  NN  A   A  L       Y     Z      E      R R   
 A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR 
-""" + "\033[0m" + "      by CyberYom\n\n")
+""" + "\033[0m" + "      by CyberYom\n")
 
 def firstrun():
     print('Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu.' + '\n\n')
@@ -315,7 +320,7 @@ def help():
     print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n")
     print("Version: 0.0.3")
     print("Author: CyberYom")
-    print("https://github.com/cyberyom/MFTAnalyzer/issues")
+    print("https://github.com/cyberyom/MFTAnalyzer")
 
 def fhelp():
     print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
@@ -328,7 +333,7 @@ def fhelp():
     print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n")
     print("Version: 0.0.3")
     print("Author: CyberYom")
-    print("https://github.com/cyberyom/MFTAnalyzer/issues")
+    print("https://github.com/cyberyom/MFTAnalyzer")
 
 
 
