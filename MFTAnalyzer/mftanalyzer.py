@@ -316,16 +316,13 @@ def help():
 
 def fhelp():
     print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
-    print("The forensic modules offer a number of helpful forensic information gathered and processed from the MFT.\n")
-    print("All of these flags are prefixed with 'f'\n\n")
-    print("To pass the offsets of specific files, use the -fo flag.\n ----- ./MFTAnalyzer.exe $MFT -s file.txt -fo\n")
-    print("There are multiple options to list the file structure.")
-    print("     To list the file structure for the entire disk, pass the --ffs-all flag.")
-    print("     To list file structure from a certain file from a certain file, pass --ffs-flag")
-    print("-----./MFTAnalyzer.exe $MFT --ffs-all-----\n-----./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag-----\n")
-    print("To list the contents of a folder, pass the -fls flag.\n-----./MFTAnalyzer.exe $MFT -s directory -fls-----\n") 
-
-    print("+-------------------------------------------------------------------------------------+\n")
+    print("Info:\n| All forensic modules offer a number of differnt helpful forensic \n| informational tools that is gathered and processed from the MFT file.\n\n\n")
+    print("Flags:\n")
+    print("│ -fo                      \n└───────./MFTAnalyzer.exe $MFT -s file.txt -fo \n\t- Pass the offset of a specific file\n")
+    print("│ -ffs-flag                \n└───────./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag/MFTAnalyzer.exe $MFT -s file.txt --ffs-flag \n\t- Pass to list file structure from a file\n")
+    print("│ -fls                     \n└───────./MFTAnalyzer.exe $MFT -s directory -fls \n\t- Pass to list contents of a folder\n\n")
+    print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/tree/forensic-modules\n\n")
+    print("Feel free to visit the project.\n")
 
 
 
@@ -366,7 +363,6 @@ def main():
             if o_index + 1 < len(sys.argv):
                 output_path = sys.argv[o_index + 1]
             else:
-
                 print("No output path provided after -o.")
                 sys.exit(1)
         except ValueError:
