@@ -265,8 +265,29 @@ def export_to_csv(tables, filename):
 
 
 
+if any(arg.startswith('-f') for arg in sys.argv):
+    print("""[91m
+        M   M  FFFFF  TTTTT  
+        MM MM  F        T    
+        M M M  FFF      T    
+        M   M  F        T    
+        M   M  F        T    
+[92m
+AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ  EEEEE  RRRRR  
+A   A  NN  N  A   A  L      Y Y      Z    E      R   R 
+AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
+A   A  N  NN  A   A  L       Y     Z      E      R R   
+A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR 
 
-print("\033[91m" + """
+[0m    by CyberYom[94m    fff ooo rrr  eee nnn  sss ii  cc  sss  
+                   f   o o r  r e   n n  s   ii c   s    
+                   fff o o rrr  ee  n n   ss ii  c    ss  
+                   f   o o r r  e   n n     s ii c      s 
+                   f   ooo r  r eee n n  sss ii  cc  sss 
+[0m""")
+
+else:
+    print("\033[91m" + """
         M   M  FFFFF  TTTTT  
         MM MM  F        T    
         M M M  FFF      T    
@@ -342,7 +363,6 @@ def main():
             if o_index + 1 < len(sys.argv):
                 output_path = sys.argv[o_index + 1]
             else:
-                
                 print("No output path provided after -o.")
                 sys.exit(1)
         except ValueError:
