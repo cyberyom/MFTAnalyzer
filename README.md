@@ -29,7 +29,7 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rela
  
 ## Getting Started
 ```
- C:\Users\clafl\Documents\code\mft parser>python MFTAnalyzer.py -h
+$ MFTAnalyzer.exe -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
