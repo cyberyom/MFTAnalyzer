@@ -284,12 +284,24 @@ def firstrun():
     print('Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu.' + '\n\n')
 
 def help():
+    print("+------------------------------------+ Help Page +------------------------------------+\n")
     print("This tool has a few options available. \n")
     print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile-----\n")
     print("To search for specific file entries, pass the -s flag, along with the string to search for.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT -s testfile -----\n")
     print("To export your results, use the -o flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile -o C:\\Desired\\Path\\To\\Results.txt-----\n")
     print("To export your results to a CSV, pass the --csv flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT --csv -----\n")
+    print("To view the forensic module help page, pass the -fh flag.\n-----./MFTAnalyzer.exe -fh -----\n")
+    print("+-------------------------------------------------------------------------------------+\n")
 
+def fhelp():
+    print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
+    print("Info:\n| All forensic modules offer a number of differnt helpful forensic \n| informational tools that is gathered and processed from the MFT file.\n\n\n")
+    print("Flags:\n")
+    print("│ -fo                      \n└───────./MFTAnalyzer.exe $MFT -s file.txt -fo \n\t- Pass the offset of a specific file\n")
+    print("│ -ffs-flag                \n└───────./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag/MFTAnalyzer.exe $MFT -s file.txt --ffs-flag \n\t- Pass to list file structure from a file\n")
+    print("│ -fls                     \n└───────./MFTAnalyzer.exe $MFT -s directory -fls \n\t- Pass to list contents of a folder\n\n")
+    print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/tree/forensic-modules\n\n")
+    print("Feel free to visit the project.\n")
 
 
 
@@ -305,6 +317,10 @@ def main():
 
     if '-h' in sys.argv:
         help()
+        sys.exit(0)
+
+    if '-fh' in sys.argv:
+        fhelp()
         sys.exit(0)
 
     if '-s' in sys.argv:
@@ -326,6 +342,7 @@ def main():
             if o_index + 1 < len(sys.argv):
                 output_path = sys.argv[o_index + 1]
             else:
+                
                 print("No output path provided after -o.")
                 sys.exit(1)
         except ValueError:
