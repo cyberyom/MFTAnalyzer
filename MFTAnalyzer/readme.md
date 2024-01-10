@@ -1,5 +1,5 @@
 ```
-$ ./MFTAnalyzer.exe-h
+$ ./MFTAnalyzer.exe -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
