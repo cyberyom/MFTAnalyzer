@@ -306,23 +306,30 @@ def firstrun():
 
 def help():
     print("+------------------------------------+ Help Page +------------------------------------+\n")
-    print("This tool has a few options available. \n")
-    print("For simply parsing an MFT file, pass the location of the MFT file.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile-----\n")
-    print("To search for specific file entries, pass the -s flag, along with the string to search for.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT -s testfile -----\n")
-    print("To export your results, use the -o flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFTfile -o C:\\Desired\\Path\\To\\Results.txt-----\n")
-    print("To export your results to a CSV, pass the --csv flag.\n-----./MFTAnalyzer.exe C:\\Path\\To\\MFT --csv -----\n")
-    print("To view the forensic module help page, pass the -fh flag.\n-----./MFTAnalyzer.exe -fh -----\n")
-    print("+-------------------------------------------------------------------------------------+\n")
+    print("Info:\n| This tool is meant to gather and parse data from the NTFS file $MTF. \n| It is intended to display results of all data in table format, \n| offering both readable and raw data.\n")
+    print("| To parse an MFT file, simple pass an MFT file to the tool\n└───────./MFTAnalyzer.exe C:\\path\\to\\$MFT\n\n")
+    print("Flags:")
+    print("| -s \n└───────./MFTAnalyzer.exe $MFT -s filename\n\t- Search for a specific file entry based off file name\n")
+    print("| -o C:\\path\\to\\output.txt\n└───────./MFTAnalyzer.exe $MFT -o output.txt\n\t- Output the results to a text file\n")
+    print("| --csv \n└───────./MFTAnalyzer.exe $MFT --csv\n\t- Output the results to csv format\n\n")
+    print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n")
+    print("Version: 0.0.3")
+    print("Author: CyberYom")
+    print("https://github.com/cyberyom/MFTAnalyzer/issues")
 
 def fhelp():
     print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
-    print("Info:\n| All forensic modules offer a number of differnt helpful forensic \n| informational tools that is gathered and processed from the MFT file.\n\n\n")
-    print("Flags:\n")
+    print("Info:\n| All forensic modules offer a number of differnt helpful forensic \n| informational tools that is gathered and processed from the MFT file.\n\n")
+    print("Flags:")
     print("│ -fo                      \n└───────./MFTAnalyzer.exe $MFT -s file.txt -fo \n\t- Pass the offset of a specific file\n")
-    print("│ -ffs-flag                \n└───────./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag/MFTAnalyzer.exe $MFT -s file.txt --ffs-flag \n\t- Pass to list file structure from a file\n")
+    print("│ -ffs-all                 \n└───────./MFTAnalyzer.exe $MFT --ffs-all\n\t- Pass to list file structure for whole disk\n")
+    print("│ -ffs-flag                \n└───────./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag\n\t- Pass to list file structure from a file\n")
     print("│ -fls                     \n└───────./MFTAnalyzer.exe $MFT -s directory -fls \n\t- Pass to list contents of a folder\n\n")
-    print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/tree/forensic-modules\n\n")
-    print("Feel free to visit the project.\n")
+    print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n")
+    print("Version: 0.0.3")
+    print("Author: CyberYom")
+    print("https://github.com/cyberyom/MFTAnalyzer/issues")
+
 
 
 
