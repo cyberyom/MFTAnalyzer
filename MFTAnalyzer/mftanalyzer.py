@@ -297,11 +297,11 @@ def fhelp():
     print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
     print("Info:\n| All forensic modules offer a number of differnt helpful forensic \n| informational tools that is gathered and processed from the MFT file.\n\n\n")
     print("Flags:\n")
-    print("| -fo                      \n\t-./MFTAnalyzer.exe $MFT -s file.txt -fo \n\t- Pass the offset of a specific file\n")
-    print("| -ffs-flag                \n\t-. /MFTAnalyzer.exe $MFT -s file.txt --ffs-flag/MFTAnalyzer.exe $MFT -s file.txt --ffs-flag \n\t- Pass to list file structure from a file\n")
-    print("| -fls                     \n\t-./MFTAnalyzer.exe $MFT -s directory -fls \n\t- Pass to list contents of a folder\n")
-    print("Additional help:\n|Contact:\n\t-https://github.com/cyberyom/MFTAnalyzer/tree/forensic-modules\n")
-    print("Feel free to visit the project.")
+    print("│ -fo                      \n└───────./MFTAnalyzer.exe $MFT -s file.txt -fo \n\t- Pass the offset of a specific file\n")
+    print("│ -ffs-flag                \n└───────./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag/MFTAnalyzer.exe $MFT -s file.txt --ffs-flag \n\t- Pass to list file structure from a file\n")
+    print("│ -fls                     \n└───────./MFTAnalyzer.exe $MFT -s directory -fls \n\t- Pass to list contents of a folder\n\n")
+    print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/tree/forensic-modules\n\n")
+    print("Feel free to visit the project.\n")
 
 
 
