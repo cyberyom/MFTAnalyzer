@@ -6,10 +6,11 @@ This program is meant to take a MFT file as input, and parse the MFT file, displ
 in the MFT file entry such as x-ways templates will.
 
 Program lives on github.
-""" 
-from prettytable import PrettyTable
+"""
 from mfttemplate import tablecreation
 from mfttemplate import logic
+from mftforensics import modules
+from prettytable import PrettyTable
 import os
 import sys
 import csv
@@ -77,7 +78,8 @@ def update_offset(hex_dump, current_offset):
     attr_length_hex = logic_instance.bytes_to_decimal(hex_dump[current_offset+4:current_offset+8])
     return current_offset + attr_length_hex
 
-def handle_path(providedpath, search_name=None, export_csv=False):
+def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=False):
+    file_found = False
     if os.path.exists(providedpath):
         target_bytes = b'\x46\x49\x4C\x45'  # FILE signature
         all_hex_dumps = MFT(providedpath, target_bytes)
@@ -98,14 +100,16 @@ def handle_path(providedpath, search_name=None, export_csv=False):
             logical_size = logic_instance.hex_to_uint(''.join(hex_dump[24:28]))
             current_offset = logic_instance.hex_to_short(''.join(hex_dump[20:22]))
             previous_offset = None
+            filecontent_data = b''
+            filecontent_data = None
+            extracted_name = None
+
             entry_table = "" 
 
             while current_offset < len(hex_dump) and current_offset < logical_size:
                 if current_offset == previous_offset:
                     break
-
                 attr_type = determine_attribute_type(hex_dump, current_offset)
-
                 sd_table = None
                 si_table = None
                 al_table = None
@@ -131,14 +135,10 @@ def handle_path(providedpath, search_name=None, export_csv=False):
                         si_table = tablecreation_instance.standard_info(hex_dump[current_offset:])
                         all_pretty_tables.append(si_table)
                         entry_table += si_table.get_string() + "\n"
-
-
                     elif attr_type == '$ATTRIBUTE_LIST':
                         al_table = tablecreation_instance.attribute_list(hex_dump[current_offset:])
                         all_pretty_tables.append(al_table)
                         entry_table += al_table.get_string() + "\n"
-
-
                     if attr_type == '$FILE_NAME':
                         fn_table = tablecreation_instance.file_name(hex_dump[current_offset:])
                         all_pretty_tables.append(fn_table)
@@ -153,73 +153,76 @@ def handle_path(providedpath, search_name=None, export_csv=False):
                         if oi_table is not None:
                             all_pretty_tables.append(oi_table)
                             entry_table += oi_table.get_string() + "\n"
-
                     elif attr_type == '$SECURITY_DESCRIPTOR':
                         sd_table = tablecreation_instance.security_descriptor(hex_dump[current_offset:])
                         if sd_table is not None:
                             all_pretty_tables.append(sd_table)
                             entry_table += sd_table.get_string() + "\n"
-
                     elif attr_type == "$VOLUME_NAME":
                         vn_table = tablecreation_instance.volume_name(hex_dump[current_offset:])
                         if vn_table is not None:
                             all_pretty_tables.append(vn_table)
                             entry_table += vn_table.get_string() + "\n"
-
                     elif attr_type == '$VOLUME_INFORMATION':
                         vii_table = tablecreation_instance.volume_information(hex_dump[current_offset:])
                         all_pretty_tables.append(vii_table)
                         entry_table += vii_table.get_string() + "\n"
-
                     elif attr_type == '$DATA':
                         da_table = tablecreation_instance.data(hex_dump[current_offset:])
-                        all_pretty_tables.append(da_table)
-                        entry_table += da_table.get_string() + "\n"
-
+                        if da_table:
+                            all_pretty_tables.append(da_table)
+                            entry_table += da_table.get_string() + "\n"
+                        
                     elif attr_type == '$INDEX_ROOT':
                         ir_table = tablecreation_instance.index_root(hex_dump[current_offset:])
                         all_pretty_tables.append(ir_table)
                         entry_table += ir_table.get_string() + "\n"
-
                     elif attr_type == '$INDEX_ALLOCATION':
                         ia_table = tablecreation_instance.index_allocation(hex_dump[current_offset:])
                         all_pretty_tables.append(ia_table)
                         entry_table += ia_table.get_string() + "\n"
-
                     elif attr_type == '$BITMAP':
                         bm_table = tablecreation_instance.bitmap(hex_dump[current_offset:])
                         all_pretty_tables.append(bm_table)
                         entry_table += bm_table.get_string() + "\n"
-
                     elif attr_type == '$SYMBOLIC_LINK':
                         sl_table = tablecreation_instance.index_root(hex_dump[current_offset:])
                         all_pretty_tables.append(sl_table)
                         entry_table += sl_table.get_string() + "\n"
-
                     elif attr_type == '$REPARSE_POINT':
                         rp_table = tablecreation_instance.reparse_point(hex_dump[current_offset:])
                         all_pretty_tables.append(rp_table)
                         entry_table += rp_table.get_string() + "\n"
-
                     elif attr_type == '$EA_INFORMATION':
                         eai_table = tablecreation_instance.ea_information(hex_dump[current_offset:])
                         all_pretty_tables.append(eai_table)
                         entry_table += eai_table.get_string() + "\n"
-
                     elif attr_type == '$EA':
                         ea_table = tablecreation_instance.ea(hex_dump[current_offset:])
                         all_pretty_tables.append(ea_table)
                         entry_table += ea_table.get_string() + "\n"
-
                     elif attr_type == 'PROPERTY_SET':
                         ps_table = tablecreation_instance.property_set(hex_dump[current_offset:])
                         all_pretty_tables.append(ps_table)
                         entry_table += ps_table.get_string() + "\n"
-
                     elif attr_type == '$LOGGED_UTILITY_STREAM':
                         lus_table = tablecreation_instance.logged_utility_stream(hex_dump[current_offset:])
                         all_pretty_tables.append(lus_table)
                         entry_table += lus_table.get_string() + "\n"
+
+                    if search_name and extracted_name and search_name in extracted_name:
+                        file_found = True  
+
+                    if file_found:
+                        if extract_ffc and attr_type == '$DATA':
+                            if hex_dump[current_offset+8:current_offset+9] == ['00']:
+                                filecontentlen_hex = logic_instance.bytes_to_hex(hex_dump[current_offset+16:current_offset+20])
+                                filecontentlen = int(filecontentlen_hex, 16)
+                                filecontent_hex = hex_dump[current_offset+24:current_offset+24+filecontentlen]
+                                filecontent_data = bytes.fromhex(''.join(filecontent_hex))
+                                break 
+                    else:
+                        pass # Breaks out of the while loop
 
                 previous_offset = current_offset
                 current_offset = update_offset(hex_dump, current_offset)
@@ -228,7 +231,7 @@ def handle_path(providedpath, search_name=None, export_csv=False):
 
             if search_name and not extracted_name:
                 continue
-            
+        
             if search_name and extracted_name and search_name not in extracted_name:
                 continue
 
@@ -238,15 +241,33 @@ def handle_path(providedpath, search_name=None, export_csv=False):
             else:
                 all_tables += "\033[91m     Entry Header for File: Entry without a name\n \033[0m"
 
+            if filecontent_data:
+                break
+
             all_tables += pretty_table.get_string() + "\n\n" 
             all_tables += entry_table  
 
         if export_csv:
             export_to_csv(all_pretty_tables, f"{providedpath}_exported.csv")
 
-        summary_string = f"\nTotal number of MFT entries processed: {entry_count}"
-        header = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└----------------------------------------------------------------------------\n\n"
-        return header + all_tables.rstrip() + summary_string
+        if not any(arg.startswith('-f') for arg in sys.argv):
+            summary_string = f"\nTotal number of MFT entries processed: {entry_count}"
+            header = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└----------------------------------------------------------------------------\n\n"
+            return header + all_tables.rstrip() + summary_string
+
+        if filecontent_data:
+            output_filename = f"{extracted_name}"
+
+            try:
+                with open(output_filename, 'wb') as file:
+                    file.write(filecontent_data)
+
+                header = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└----------------------------------------------------------------------------\n\n"
+                return header + f"Data successfully extracted to {output_filename}."
+            except IOError as e:
+                return f"Error writing extracted data to file: {e}"
+        else:
+                return "No resident data found to extract."
     else:
         return 'File not found.'
 
@@ -259,7 +280,7 @@ def output_results(data, outputpath):
     except IOError as e:
         print(f"An error occurred while writing to the file: {e}")
 
-
+ 
 def export_to_csv(tables, filename):
     with open(filename, 'w', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
@@ -314,6 +335,7 @@ def help():
     print("Info:\n| This tool is meant to gather and parse data from the NTFS file $MTF. \n| It is intended to display results of all data in table format, \n| offering both readable and raw data.\n")
     print("| To parse an MFT file, simple pass an MFT file to the tool\n└───────./MFTAnalyzer.exe C:\\path\\to\\$MFT\n\n")
     print("Flags:")
+    print("| -fh \n└───────./MFTAnalyzer.exe -fh\n\t- View the help menu for the forensic modules\n")
     print("| -s \n└───────./MFTAnalyzer.exe $MFT -s filename\n\t- Search for a specific file entry based off file name\n")
     print("| -o C:\\path\\to\\output.txt\n└───────./MFTAnalyzer.exe $MFT -o output.txt\n\t- Output the results to a text file\n")
     print("| --csv \n└───────./MFTAnalyzer.exe $MFT --csv\n\t- Output the results to csv format\n\n")
@@ -326,7 +348,7 @@ def fhelp():
     print("+----------------------------+ Forensic Module Help Page +----------------------------+\n")
     print("Info:\n| All forensic modules offer a number of differnt helpful forensic \n| informational tools that is gathered and processed from the MFT file.\n\n")
     print("Flags:")
-    print("│ -fo                      \n└───────./MFTAnalyzer.exe $MFT -s file.txt -fo \n\t- Pass the offset of a specific file\n")
+    print("│ -ffc                      \n└───────./MFTAnalyzer.exe $MFT -s file.txt -ffc \n\t- Carve resident files and pass the disk offset of a non-resident file\n")
     print("│ -ffs-all                 \n└───────./MFTAnalyzer.exe $MFT --ffs-all\n\t- Pass to list file structure for whole disk\n")
     print("│ -ffs-flag                \n└───────./MFTAnalyzer.exe $MFT -s file.txt --ffs-flag\n\t- Pass to list file structure from a file\n")
     print("│ -fls                     \n└───────./MFTAnalyzer.exe $MFT -s directory -fls \n\t- Pass to list contents of a folder\n\n")
@@ -343,6 +365,7 @@ def main():
     search_flag = False
     output_path = None
     export_csv = False
+    extract_ffc = '-ffc' in sys.argv
 
     if len(sys.argv) == 1:
         firstrun()
@@ -355,40 +378,63 @@ def main():
     if '-fh' in sys.argv:
         fhelp()
         sys.exit(0)
-
-    if '-s' in sys.argv:
-        try:
-            s_index = sys.argv.index('-s')
-            if s_index + 1 < len(sys.argv):
-                search_name = sys.argv[s_index + 1]
-                search_flag = True
-            else:
-                print("No search name provided after -s.")
+        
+    if not any(arg.startswith('-f') for arg in sys.argv):
+        if '-s' in sys.argv:
+            try:
+                s_index = sys.argv.index('-s')
+                if s_index + 1 < len(sys.argv):
+                    search_name = sys.argv[s_index + 1]
+                    search_flag = True
+                else:
+                    print("No search name provided after -s.")
+                    sys.exit(1)
+            except ValueError:
+                print("Error processing -s argument.")
                 sys.exit(1)
-        except ValueError:
-            print("Error processing -s argument.")
-            sys.exit(1)
 
-    if '-o' in sys.argv:
-        try:
-            o_index = sys.argv.index('-o')
-            if o_index + 1 < len(sys.argv):
-                output_path = sys.argv[o_index + 1]
-            else:
-                print("No output path provided after -o.")
+        if '-o' in sys.argv:
+            try:
+                o_index = sys.argv.index('-o')
+                if o_index + 1 < len(sys.argv):
+                    output_path = sys.argv[o_index + 1]
+                else:
+                    print("No output path provided after -o.")
+                    sys.exit(1)
+            except ValueError:
+                print("Error processing -o argument.")
                 sys.exit(1)
-        except ValueError:
-            print("Error processing -o argument.")
-            sys.exit(1)
 
-    if '--csv' in sys.argv:
-        export_csv = True
+        if '--csv' in sys.argv:
+            export_csv = True
+ 
+        argpath = sys.argv[1]
+        path_output = handle_path(argpath, search_name if search_flag else None, export_csv, extract_ffc)
+        print(path_output)
+        if output_path:
+            output_results(path_output, output_path)
 
-    argpath = sys.argv[1]
-    path_output = handle_path(argpath, search_name if search_flag else None, export_csv)
-    print(path_output)
-    if output_path:
-        output_results(path_output, output_path)
+    elif any(arg.startswith('-f') for arg in sys.argv):
+        if '-s' in sys.argv:
+            try:
+                s_index = sys.argv.index('-s')
+                if s_index + 1 < len(sys.argv):
+                    search_name = sys.argv[s_index + 1]
+                    search_flag = True
+                else:
+                    print("No search name provided after -s.")
+                    sys.exit(1)
+            except ValueError:
+                print("Error processing -s argument.")
+                sys.exit(1)
+
+        extract_ffc = '-ffc' in sys.argv
+        argpath = sys.argv[1]
+        extraction_result = handle_path(argpath, search_name, export_csv, extract_ffc)
+
+    # Handle the extraction result
+    if extract_ffc:
+        print(extraction_result)
 
 if __name__ == "__main__":
     main() #script execution
