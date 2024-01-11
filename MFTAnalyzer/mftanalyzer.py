@@ -13,6 +13,7 @@ from prettytable import PrettyTable
 import os
 import sys
 import csv
+import datetime
 
 def MFT(argpath, target_bytes):
     outputs = [] 
@@ -85,7 +86,6 @@ def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=Fa
 
         if not all_hex_dumps or all_hex_dumps == ["No MFT entries found."]:
             return "No MFT entries found."
-
         all_tables = ""
         entry_count = 0 
         all_pretty_tables = []
@@ -98,11 +98,11 @@ def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=Fa
             all_pretty_tables.append(pretty_table)
             logical_size = logic_instance.hex_to_uint(''.join(hex_dump[24:28]))
             current_offset = logic_instance.hex_to_short(''.join(hex_dump[20:22]))
+            entry_number = logic_instance.hex_to_uint(''.join(hex_dump[44:48]))
             previous_offset = None
             filecontent_data = b''
             filecontent_data = None
             extracted_name = None
-
             entry_table = "" 
 
             while current_offset < len(hex_dump) and current_offset < logical_size:
@@ -235,10 +235,10 @@ def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=Fa
                 continue
 
             if extracted_name:
-               all_tables += f"\033[91m     Entry Header for File: \033[92m{extracted_name}\033[0m\n"
-
+                all_tables += f"\033[91m     Entry Header for File: \033[92m{extracted_name}\033[0m - \033[91mEntry Number: \033[92m{entry_number}\033[0m\n"
             else:
                 all_tables += "\033[91m     Entry Header for File: Entry without a name\n \033[0m"
+                all_tables += f"\033[91m     MFT Entry Number: \033[92m{entry_number}\033[0m\n"
 
             if filecontent_data:
                 break
@@ -265,7 +265,7 @@ def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=Fa
 
                 data = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------\n\n"
                 
-                data += f"Data successfully extracted to {output_filename}.\n"
+                data += f"Data successfully extracted to '\033[92m{output_filename}\033[0m'.\n"
                 data += f"└────── File Size: {stats.st_size} (Bytes)\n"
                 data += f"└────── File Created At: {datetime.datetime.fromtimestamp(stats.st_atime).strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
@@ -279,6 +279,7 @@ def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=Fa
                 return "No resident data found to extract."
     else:
         return 'File not found.'
+
 
 
 def output_results(data, outputpath):
