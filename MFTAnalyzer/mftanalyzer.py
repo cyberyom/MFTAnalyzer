@@ -262,8 +262,18 @@ def handle_path(providedpath, search_name=None, export_csv=False, extract_ffc=Fa
                 with open(output_filename, 'wb') as file:
                     file.write(filecontent_data)
 
-                header = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└----------------------------------------------------------------------------\n\n"
-                return header + f"Data successfully extracted to {output_filename}."
+                stats = os.stat(output_filename)
+
+                data = "| Version: 0.0.3\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------\n\n"
+                
+                data += f"Data successfully extracted to {output_filename}.\n"
+                data += f"└────── File Size: {stats.st_size} (Bytes)\n"
+                data += f"└────── File Created At: {datetime.datetime.fromtimestamp(stats.st_atime).strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+                data += f"Content:\n"
+                data += f"───────\n"
+                data += f"{str(filecontent_data)[2:-1]}\n\n"
+                return data
             except IOError as e:
                 return f"Error writing extracted data to file: {e}"
         else:
