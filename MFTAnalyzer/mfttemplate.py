@@ -410,7 +410,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Data"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -426,8 +426,8 @@ class tablecreation:
        
         elif logic_instance.residency(hex_dump[8:9]) == "Resident":
             filecontent_hex = logic_instance.bytes_to_hex(hex_dump[16:20])
-            filecontent = int(filecontent_hex, 16)
-            table.add_row(["File Content Length", ' '.join(hex_dump[16:20]), filecontent_hex])
+            filecontent = logic_instance.bytes_to_decimal(filecontent_hex)
+            table.add_row(["File Content Length", ' '.join(hex_dump[16:20]),filecontent])
             table.add_row(["Offsent to Content", ' '.join(hex_dump[20:22]), logic_instance.hex_to_short(''.join(hex_dump[20:22]))])
             table.add_row(["File Content", ' '.join(hex_dump[24:24+filecontent]), logic_instance.hex_to_ascii(hex_dump[24:24+filecontent])])
 
