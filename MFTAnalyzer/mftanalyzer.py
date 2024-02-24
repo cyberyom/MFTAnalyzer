@@ -204,7 +204,7 @@ def handle_path(providedpath, search_name=None, mft_number=None,export_csv=False
                         entry_table += sl_table.get_string() + "\n"
                     elif attr_type == '$REPARSE_POINT':
                         rp_table = tablecreation_instance.reparse_point(hex_dump[current_offset:])
-                        all_pretty_tablses.append(rp_table)
+                        all_pretty_tables.append(rp_table)
                         entry_table += rp_table.get_string() + "\n"
                     elif attr_type == '$EA_INFORMATION':
                         eai_table = tablecreation_instance.ea_information(hex_dump[current_offset:])
@@ -380,7 +380,8 @@ def handle_path(providedpath, search_name=None, mft_number=None,export_csv=False
                                     filecontent_data = bytes.fromhex(''.join(filecontent_hex))
                                     break 
                                 if hex_dump[current_offset+8:current_offset+9] == ['01']:
-                                    startcluster = logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[16:24])))
+                                    residency = hex_dump[current_offset+8:current_offset+9]
+                                    startcluster = logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[current_offset+16:current_offset+24])))
                                     endcluster = logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[current_offset+24:current_offset+32])))
                                     datarun = logic_instance.hex_to_short(''.join(hex_dump[current_offset+32:current_offset+34]))
                                     Logicalsize = logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[current_offset+40:current_offset+48])))
@@ -423,9 +424,9 @@ def handle_path(providedpath, search_name=None, mft_number=None,export_csv=False
                         else:
                             pass
 
-                        if startcluster:
+                        if residency:
                             data +=  "Note that this file is non-resident and thus can not be carved from the MFT.\n\n "
-                            data +=  f"Statistics for {extracted_name}\n└────── Starting Cluster: {startcluster}\n└────── Ending Cluster: {endcluster}\n└────── Datarun Offset: {datarun}\n└────── Logical Size of File: {logical_size}"
+                            data +=  f"Statistics for {extracted_name}\n└────── Starting Cluster: {startcluster}\n└────── Ending Cluster: {endcluster}\n└────── Datarun Offset: {datarun}\n└────── Logical Size of File: {Logicalsize}"
                             return data
                     else:
                         pass
@@ -543,9 +544,10 @@ def handle_path(providedpath, search_name=None, mft_number=None,export_csv=False
                         dump_flag = True
                         filename_to_find = args[0]
                         all_hex_dumps = MFT(providedpath, target_bytes)
-                        find_and_display_file(all_hex_dumps, tablecreation_instance, filename_to_find, dump_flag)
-                        print(find_and_display_file)
+                        file_info = find_and_display_file(all_hex_dumps, tablecreation_instance, filename_to_find, dump_flag)
+                        print(file_info)
                         continue
+
 
 
                     if command == 'cat':
@@ -678,11 +680,9 @@ def help():
     print("Flags:")
     print("| -sn \n└───────./MFTAnalyzer.exe $MFT -sn filename\n\t- Search for a specific file entry based off file name\n")
     print("| -sm \n└───────./MFTAnalyzer.exe $MFT -sm ENTRYNUMBER\n\t- Search for a specific file entry based off MFT file entry number\n")
-    print("| -o \n└───────./MFTAnalyzer.exe $MFT -o output.txt\n\t- Output the results to a text file\n")
-    print("| --csv \n└───────./MFTAnalyzer.exe $MFT --csv\n\t- Output the results to csv format\n")
     print("| --shell \n└───────./MFTAnalyzer.exe $MFT --shell\n\t- Enter a shell with the MFT file\n\n")
     print("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n")
-    print("Version: 0.0.3")
+    print("Version: 0.1.0")
     print("Author: CyberYom")
     print("https://github.com/cyberyom/MFTAnalyzer")
 
@@ -726,17 +726,17 @@ def main():
                 sys.exit(1)
 
         if '-sm' in sys.argv:
-                try:
-                    m_index = sys.argv.index('-sm')
-                    if m_index + 1 < len(sys.argv):
-                        mft_number = int(sys.argv[m_index + 1])
-                    else:
-                        print("No MFT number provided after -m.")
-                        sys.exit(1)
-                except ValueError:
-                    print("Error processing -m argument.")
+            try:
+                m_index = sys.argv.index('-sm')
+                if m_index + 1 < len(sys.argv):
+                    mft_number = int(sys.argv[m_index + 1])
+                else:
+                    print("No MFT number provided after -m.")
                     sys.exit(1)
-
+            except ValueError:
+                print("Error processing -m argument.")
+                sys.exit(1)
+            '''
         if '-o' in sys.argv:
             try:
                 o_index = sys.argv.index('-o')
@@ -751,7 +751,7 @@ def main():
 
         if '--csv' in sys.argv:
             export_csv = True
- 
+            '''
         if len(sys.argv) > 1:
             argpath = sys.argv[1]
             argpath = os.path.abspath(argpath)
@@ -759,57 +759,6 @@ def main():
         print(path_output)
         if output_path:
             output_results(path_output, output_path)
-
-    elif any(arg.startswith('-f') for arg in sys.argv):
-        if '-ffs-all' in sys.argv:
-            ffs_all_flag = True
-
-        if '-sn' in sys.argv:
-            try:
-                s_index = sys.argv.index('-sn')
-                if s_index + 1 < len(sys.argv):
-                    search_name = sys.argv[s_index + 1]
-                else:
-                    print("No search name provided after -s.")
-                    sys.exit(1)
-            except ValueError:
-                print("Error processing -s argument.")
-                sys.exit(1)
-
-        if '-sm' in sys.argv:
-                try:
-                    m_index = sys.argv.index('-sm')
-                    if m_index + 1 < len(sys.argv):
-                        mft_number = int(sys.argv[m_index + 1])
-                    else:
-                        print("No MFT number provided after -m.")
-                        sys.exit(1)
-                except ValueError:
-                    print("Error processing -m argument.")
-                    sys.exit(1)
-
-        if '-fls' in sys.argv:
-            view_contents = True
-            try:
-                fls_index = sys.argv.index('-fls')
-                if fls_index + 1 < len(sys.argv):
-                    search_name = sys.argv[fls_index + 1]
-                else:
-                    print("No filename provided after -fls.")
-                    sys.exit(1)
-            except ValueError:
-                print("Error processing -fls argument.")
-                sys.exit(1)
-
-
-
-        extract_ffc = '-ffc' in sys.argv
-        if len(sys.argv) > 1:
-            argpath = sys.argv[1]
-            argpath = os.path.abspath(argpath)
-
-        extraction_result = handle_path(argpath, search_name, mft_number, export_csv, extract_ffc, view_contents, ffs_all_flag,shell__flag)
-        print(extraction_result)
 
 if __name__ == "__main__":
     main() #script execution
