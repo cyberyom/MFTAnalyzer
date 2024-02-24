@@ -18,9 +18,10 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rele
 ## Features
 
 - **Feature 1:** By simply passing the tool an MFT file, it will generate tables for all relevant data from each and every MFT entry found. 
-- **Feature 2:** By passing the <-sn> flag, one will be able to search for specific file entries, using the file name as the search term.  
-- **Feature 3:** Tool is able to recreate file structure of whole disk, or specific folders, as well as give you a shell in the filesystem, with limited commands. 
-- **Feature 4:** Tool is capable of carving files in the MFT. For resident files, it just pulls the data from the MFT. For non-resident files, it will return relevant information to carve the file.
+- **Feature 2:** By passing the <-sn> flag, one will be able to search for specific file entries, using the file name as the search term.
+- **Feature 3:** By passing the <-sm> flag, one will be able to search for specific file entries, using the file entry number as the search term.   
+- **Feature 4:** Tool is able to recreate file structure of whole disk, or specific folders, as well as give you a shell in the filesystem, with limited commands. 
+- **Feature 5:** Tool is capable of carving files in the MFT. For resident files, it just pulls the data from the MFT. For non-resident files, it will return relevant information to carve the file.
  
  
  
