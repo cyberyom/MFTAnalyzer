@@ -1,0 +1,4 @@
+Below are the needed python requirements to run the code from source. 
+
+anytree
+prettytable
