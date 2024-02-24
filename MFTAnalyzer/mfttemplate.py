@@ -162,28 +162,37 @@ class logic:
         if len(hex_dump) != 4:
             return "Invalid input length for file attribute flags"
 
-        reversed_hex_dump = hex_dump[::-1]
-        flag_hex = ''.join(reversed_hex_dump)
+        flag_hex = ''.join(hex_dump[::-1])
+        attribute_flag_int = int(flag_hex, 16)
+
         attribute_flags = {
-            0x01000000: "Read-only",
-            0x02000000: "Hidden",
-            0x04000000: "System",
-            0x20000000: "Archive",
-            0x40000000: "Device",
-            0x80000000: "Normal",
-            0x00010000: "Temporary",
-            0x00020000: "Sparse file",
-            0x00040000: "Reparse point",
-            0x00080000: "Compressed",
-            0x00100000: "Offline",
-            0x00200000: "Not content indexed",
-            0x00400000: "Encrypted",
-            0x00800000: "Integrity stream",
-            0x00000100: "Virtual",
-            0x00000200: "No scrub data",
+            0x00000001: "Read-only",
+            0x00000002: "Hidden",
+            0x00000004: "System",
+            0x00000020: "Archive",
+            0x00000040: "Device",
+            0x00000080: "Normal",
+            0x00000100: "Temporary",
+            0x00000200: "Sparse file",
+            0x00000400: "Reparse point",
+            0x00000800: "Compressed",
+            0x00001000: "Offline",
+            0x00002000: "Not content indexed",
+            0x00004000: "Encrypted",
+            0x00008000: "Integrity stream",
+            0x01000000: "Virtual",
+            0x02000000: "No scrub data",
+            0x10000000: "Suspected Directory"
         }
 
-        return attribute_flags.get(flag_hex, "Unknown Attribute Flag")
+        matched_attributes = [name for flag, name in attribute_flags.items() if attribute_flag_int & flag]
+        
+        if matched_attributes:
+            return ', '.join(matched_attributes)
+        else:
+            return "No matching attributes or Unknown Attribute Flag"
+
+
 
 
 class tablecreation:
@@ -215,7 +224,7 @@ class tablecreation:
         table.add_row(["Logical Size of Record", ' '.join(hex_dump[24:28]), logic_instance.hex_to_uint(''.join(hex_dump[24:28]))])
         table.add_row(["Physical Size of Record", ' '.join(hex_dump[28:32]), logic_instance.hex_to_uint(''.join(hex_dump[28:32]))])
         table.add_row(["Base Record", ' '.join(hex_dump[32:40]), logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[32:40])))])
-        
+        table.add_row(["MFT Entry Number", ' '.join(hex_dump[44:48]), logic_instance.hex_to_uint(''.join(hex_dump[44:48]))])
         return table
 
     def standard_info(self, hex_dump):
@@ -227,7 +236,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Standard Information"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -236,7 +245,7 @@ class tablecreation:
         table.add_row(["File Modification", ' '.join(hex_dump[32:40]), logic_instance.filetime_to_dt(bytes([int(b, 16) for b in hex_dump[32:40]]))])
         table.add_row(["MFT Modification", ' '.join(hex_dump[40:48]), logic_instance.filetime_to_dt(bytes([int(b, 16) for b in hex_dump[40:48]]))])
         table.add_row(["File Accessed", ' '.join(hex_dump[48:56]), logic_instance.filetime_to_dt(bytes([int(b, 16) for b in hex_dump[48:56]]))])
-        table.add_row(["Attribute Flags", ' '.join(hex_dump[56:60]), logic_instance.bytes_to_hex(hex_dump[56:60])])
+        table.add_row(["Attribute Flags", ' '.join(hex_dump[56:60]), logic_instance.file_attribute_flags(hex_dump[56:60])])
         table.add_row(["Max Versions", ' '.join(hex_dump[60:64]), "Unknown"])
         table.add_row(["Version Number", ' '.join(hex_dump[64:68]), "Unknown"])
         table.add_row(["Class Identifier", ' '.join(hex_dump[68:72]), "Unknown"])
@@ -244,7 +253,6 @@ class tablecreation:
         table.add_row(["Security Identifier", ' '.join(hex_dump[76:80]), logic_instance.bytes_to_decimal(hex_dump[76:80])])
         table.add_row(["Quota Charged", ' '.join(hex_dump[80:88]), "Unknown"])
         table.add_row(["Update Sequence Number", ' '.join(hex_dump[88:96]), "Unknown"])
-
         return table
 
 
@@ -257,7 +265,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Attribute List"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -280,7 +288,7 @@ class tablecreation:
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
         table.add_row(["Attr. ID", ' '.join(hex_dump[14:16]), logic_instance.hex_to_short(''.join(hex_dump[14:16]))])
-        table.add_row(["Parent MFT Reference", ' '.join(hex_dump[24:32]), logic_instance.bytes_to_uint64(bytes.fromhex(''.join(hex_dump[24:32])))])
+        table.add_row(["Parent MFT Reference", ' '.join(hex_dump[24:30]), logic_instance.bytes_to_decimal(hex_dump[24:30])])
         table.add_row(["File Creation",' '.join(hex_dump[32:40]), logic_instance.filetime_to_dt(bytes([int(b, 16) for b in hex_dump[32:40]]))])
         table.add_row(["File Modification",' '.join(hex_dump[40:48]), logic_instance.filetime_to_dt(bytes([int(b, 16) for b in hex_dump[40:48]]))])
         table.add_row(["MFT Modification",' '.join(hex_dump[48:56]), logic_instance.filetime_to_dt(bytes([int(b, 16) for b in hex_dump[48:56]]))])
@@ -307,7 +315,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Volume Version"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -324,7 +332,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Object ID"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -340,7 +348,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[0:4]), "$Attribute List"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -357,7 +365,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Volume Name"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -374,7 +382,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Volume Information"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -392,7 +400,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Volume Information"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -443,7 +451,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Index Root"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute Residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -460,7 +468,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Index Allocation"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -494,7 +502,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Reparse Point"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -511,7 +519,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$EA Information"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -528,7 +536,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$EA"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -545,7 +553,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Property Set"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
@@ -562,7 +570,7 @@ class tablecreation:
         table.max_width["Data"] = 30
         table.add_row(["Attribute Type", ' '.join(hex_dump[:4]), "$Logged Utility Stream"])
         table.add_row(["Attribute Size", ' '.join(hex_dump[4:8]), logic_instance.bytes_to_hex(hex_dump[4:8])])
-        table.add_row(["Attribute logic.residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
+        table.add_row(["Attribute residency", ' '.join(hex_dump[8:9]), logic_instance.residency(hex_dump[8:9])])
         table.add_row(["Name Size", ' '.join(hex_dump[9:10]), hex_dump[9:10]])
         table.add_row(["Name Offset", ' '.join(hex_dump[10:12]), logic_instance.hex_to_short(''.join(hex_dump[10:12]))])
         table.add_row(["Attr. Data Flags", ' '.join(hex_dump[12:14]), logic_instance.dataflag(hex_dump[12:14])])
