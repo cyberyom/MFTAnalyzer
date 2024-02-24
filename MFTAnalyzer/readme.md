@@ -1,5 +1,5 @@
 ```
-$ ./MFTAnalyzer.exe -h
+MFTAnalyzer.exe -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
@@ -26,17 +26,17 @@ Info:
 
 
 Flags:
-| -s
-└───────./MFTAnalyzer.exe $MFT -s filename
+| -sn
+└───────./MFTAnalyzer.exe $MFT -sn filename
         - Search for a specific file entry based off file name
 
-| -o C:\path\to\output.txt
-└───────./MFTAnalyzer.exe $MFT -o output.txt
-        - Output the results to a text file
+| -sm
+└───────./MFTAnalyzer.exe $MFT -sm ENTRYNUMBER
+        - Search for a specific file entry based off MFT file entry number
 
-| --csv
-└───────./MFTAnalyzer.exe $MFT --csv
-        - Output the results to csv format
+| --shell
+└───────./MFTAnalyzer.exe $MFT --shell
+        - Enter a shell with the MFT file
 
 
 Additional help:
@@ -44,7 +44,7 @@ Additional help:
 └───────https://github.com/cyberyom/MFTAnalyzer/issues
 
 
-Version: 0.0.3
+Version: 0.1.0
 Author: CyberYom
 https://github.com/cyberyom/MFTAnalyzer
-```
+'''
