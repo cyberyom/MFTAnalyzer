@@ -29,7 +29,7 @@ MFTAnalyzer is a powerful tool designed for parsing and displaying metadata rela
  
 ## Getting Started
 ```
-$ ./MFTAnalyzer.exe -h
+> MFTAnalyzer.exe -h
 
         M   M  FFFFF  TTTTT
         MM MM  F        T
@@ -56,17 +56,17 @@ Info:
 
 
 Flags:
-| -s
-└───────./MFTAnalyzer.exe $MFT -s filename
+| -sn
+└───────./MFTAnalyzer.exe $MFT -sn filename
         - Search for a specific file entry based off file name
 
-| -o C:\path\to\output.txt
-└───────./MFTAnalyzer.exe $MFT -o output.txt
-        - Output the results to a text file
+| -sm
+└───────./MFTAnalyzer.exe $MFT -sm ENTRYNUMBER
+        - Search for a specific file entry based on MFT file entry number
 
-| --csv
-└───────./MFTAnalyzer.exe $MFT --csv
-        - Output the results to csv format
+| --shell
+└───────./MFTAnalyzer.exe $MFT --shell
+        - Enter a shell with the MFT file
 
 
 Additional help:
@@ -74,7 +74,7 @@ Additional help:
 └───────https://github.com/cyberyom/MFTAnalyzer/issues
 
 
-Version: 0.0.3
+Version: 0.1.0
 Author: CyberYom
 https://github.com/cyberyom/MFTAnalyzer
 ```
@@ -83,7 +83,7 @@ https://github.com/cyberyom/MFTAnalyzer
 Before you begin, ensure you have met the following requirements:
 - Requirement 1: Make sure that the $MFT file you are analyzing is from an NTFS version 3 + system. Tool is incompatiable with < NTFS 3.0
 - Requirement 2: You are on a 64 bit system
-- Requirement 3: If you are running from source code, you will need the python module Pretty Table installed. 
+- Requirement 3: If you are running from source code, you will need the python modules mentioned in Requirements.txt installed. 
  
  
 ### Installation
@@ -129,7 +129,7 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
 Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata.
 Passing -h will display a help menu.
 ```
-Passing -h will show you all of the options available to you. Note, the first argument you pass should be the **absolute path** to the target MFT file. 
+Passing -h will show you all of the options available to you. Note, that the first argument you pass should be the **absolute path** to the target MFT file. 
  
  
  
