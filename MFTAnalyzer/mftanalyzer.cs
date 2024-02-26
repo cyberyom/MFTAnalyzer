@@ -38,7 +38,7 @@ namespace MFTAnalyzer
             { 0xF0, "$PROPERTY_SET" },
         };
 
-        //function will extract all MFT files based on FILE header and logical size
+        //function will extract all MFT entries based on FILE header and logical size
         public static void extractMFT(string filePath)
         {
             if (!File.Exists(filePath))
