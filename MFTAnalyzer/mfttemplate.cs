@@ -51,7 +51,7 @@ namespace MFTAnalyzer
 
     public class tableCreation
     {
-        public void entryHeader(byte[] mftEntry)
+        public string entryHeader(byte[] mftEntry)
         {
             string flagsDescription = tableLogic.EntryHeaderFlags(mftEntry.Skip(22).Take(2).ToArray());
 
@@ -68,8 +68,9 @@ namespace MFTAnalyzer
             table.AddRow("Physical Size of Record", BitConverter.ToString(mftEntry, 28, 4).Replace("-", " "), BitConverter.ToUInt32(mftEntry, 28));
             table.AddRow("Base Record", BitConverter.ToString(mftEntry, 32, 8).Replace("-", " "), BitConverter.ToUInt64(mftEntry, 32));
             table.AddRow("MFT Entry Number", BitConverter.ToString(mftEntry, 44, 4).Replace("-", " "), BitConverter.ToUInt32(mftEntry, 44));
+                        
+            return table.ToMinimalString();
 
-            table.Write(Format.Alternative);
         }
 
         private ConsoleTable table; //creates table for attrheader and attr
@@ -87,7 +88,7 @@ namespace MFTAnalyzer
             this.table.AddRow("Attr. ID", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 14, 2).Replace("-", " "), maxLength), BitConverter.ToInt16(mftEntry, currentOffset + 14));
         }
 
-        public void standardInfo(byte[] mftEntry, int currentOffset)
+        public string standardInfo(byte[] mftEntry, int currentOffset)
         {
             int maxLength = Math.Max(10, Console.WindowWidth / 4);
 
@@ -103,15 +104,15 @@ namespace MFTAnalyzer
             this.table.AddRow("Security Identifier", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 76, 4).Replace("-", " "), maxLength), BitConverter.ToInt32(mftEntry, currentOffset + 76)); //needs work
             this.table.AddRow("Quota Changed", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 80, 8).Replace("-", " "), maxLength), "Unknown");
             this.table.AddRow("Update Sequence Number", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 88, 8).Replace("-", " "), maxLength), "Unknown");
-            this.table.Write(Format.Alternative);
+            return this.table.ToMinimalString();
         }
 
-        public void attrList(byte[] mftEntry, int currentOffset)
+        public string attrList(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return this.table.ToMinimalString(); //unknown
         }
 
-        public void fileName(byte[] mftEntry, int currentOffset)
+        public string fileName(byte[] mftEntry, int currentOffset)
         {
             int maxLength = Math.Max(10, Console.WindowWidth / 4);
             int nameSize = mftEntry[currentOffset + 88];
@@ -129,30 +130,30 @@ namespace MFTAnalyzer
             this.table.AddRow("Name Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 88, 1).Replace("-", " "), maxLength), nameSize.ToString());
             this.table.AddRow("File Name", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 90, nameSize).Replace("-", " "), maxLength), fileName);
 
-            this.table.Write(Format.Alternative);
+            return this.table.ToMinimalString();
         }
 
-        public void objectID(byte[] mftEntry, int currentOffset)
+        public string objectID(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return this.table.ToMinimalString();
         }
 
-        public void securityDescriptor(byte[] mftEntry, int currentOffset)
+        public string securityDescriptor(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void volumeName(byte[] mftEntry, int currentOffset)
+        public string volumeName(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void volumeInformation(byte[] mftEntry, int currentOffset)
+        public string volumeInformation(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void data(byte[] mftEntry, int currentOffset) 
+        public string data(byte[] mftEntry, int currentOffset) 
         {
             if (mftEntry[currentOffset + 8] == 0x00)
             {
@@ -160,9 +161,9 @@ namespace MFTAnalyzer
                 int fileLength = BitConverter.ToInt32(mftEntry, currentOffset + 16);
 
                 this.table.AddRow("File Content Length", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 16, 4).Replace("-", " "), maxLength), BitConverter.ToInt32(mftEntry, currentOffset + 16));
-                this.table.AddRow("Offset to Content", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 20, 2), maxLength), BitConverter.ToInt16(mftEntry, currentOffset + 20));
-                this.table.AddRow("File Content", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 22, fileLength), maxLength), tableLogic.Truncate(Encoding.ASCII.GetString(mftEntry, currentOffset + 22, fileLength), maxLength));
-                this.table.Write(Format.Alternative);  
+                this.table.AddRow("Offset to Content", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 20, 2).Replace("-", " "), maxLength), BitConverter.ToInt16(mftEntry, currentOffset + 20));
+                this.table.AddRow("File Content", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 22, fileLength).Replace("-", " "), maxLength), tableLogic.Truncate(Encoding.ASCII.GetString(mftEntry, currentOffset + 22, fileLength), maxLength));
+                return table.ToMinimalString();
             }
             else
             {
@@ -174,48 +175,48 @@ namespace MFTAnalyzer
                 this.table.AddRow("Logical File Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 40, 8).Replace("-", " "), maxLength), BitConverter.ToUInt64(mftEntry, currentOffset + 40));
                 this.table.AddRow("Physical File Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 48, 8).Replace("-", " "), maxLength), BitConverter.ToUInt64(mftEntry, currentOffset + 48));
                 this.table.AddRow("Initialized Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 56, 8).Replace("-", " "), maxLength), BitConverter.ToUInt64(mftEntry, currentOffset + 56));
-                this.table.Write(Format.Alternative);
+                return table.ToMinimalString();
             }
         }
 
-        public void indexRoot(byte[] mftEntry, int currentOffset)
+        public string indexRoot(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void indexAllocation(byte[] mftEntry, int currentOffset)
+        public string indexAllocation(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void bitmap(byte[] mftEntry, int currentOffset)
+        public string bitmap(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void reparsePoint(byte[] mftEntry, int currentOffset)
+        public string reparsePoint(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void eaInformation(byte[] mftEntry, int currentOffset)
+        public string eaInformation(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         } 
 
-        public void ea(byte[] mftEntry, int currentOffset)
+        public string ea(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void propertySet(byte[] mftEntry, int currentOffset)
+        public string propertySet(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
 
-        public void loggedUtilityStream(byte[] mftEntry, int currentOffset)
+        public string loggedUtilityStream(byte[] mftEntry, int currentOffset)
         {
-            this.table.Write(Format.Alternative); //unknown
+            return table.ToMinimalString();
         }
     }
 }
