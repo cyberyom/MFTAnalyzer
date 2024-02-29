@@ -45,18 +45,42 @@ namespace MFTAnalyzer
             return -1; // Indicate that the folder was not found
         }
 
-        public static void DisplayTree(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int entryNumber, string indent = "", HashSet<int> seenEntries = null)
+        public static void FindFilePaths(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, string filename, int entryNumber, string currentPath, HashSet<string> foundPaths)
         {
-            // Initialize the HashSet on the first call or when not provided
-            if (seenEntries == null) seenEntries = new HashSet<int>();
-
-            // Check if we've already processed this entry to avoid duplication
-            if (!seenEntries.Add(entryNumber))
+            if (!filesystem.ContainsKey(entryNumber))
             {
-                return; // Entry already processed, so we skip it
+                return; // Directory does not exist in the filesystem
             }
 
-            // Continue with existing logic
+            foreach (var item in filesystem[entryNumber])
+            {
+                // Construct the path for this item
+                string itemPath = currentPath == "" ? item.extractedName : $"/{currentPath}/{item.extractedName}";
+
+                if (item.extractedName.Equals(filename, StringComparison.OrdinalIgnoreCase))
+                {
+                    foundPaths.Add(itemPath); // Add the path to the set of found paths
+                }
+
+                // If the item is a directory, recurse into it, excluding special directories to prevent infinite recursion
+                if (filesystem.ContainsKey(item.entryNumber) && !item.extractedName.Equals(".") && !item.extractedName.Equals(".."))
+                {
+                    FindFilePaths(filesystem, filename, item.entryNumber, itemPath, foundPaths);
+                }
+            }
+        }
+        public static void DisplayTree(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int entryNumber, string indent = "", HashSet<string> seenPaths = null, string currentPath = "", bool isRoot = true)
+{
+            // Initialize the HashSet on the first call or when not provided
+            if (seenPaths == null) seenPaths = new HashSet<string>();
+
+            // Check if this is the root and handle it accordingly
+            if (isRoot)
+            {
+                Console.WriteLine(".");
+                isRoot = false; // Only the root should be marked as such, subsequent items are not root
+            }
+
             if (!filesystem.ContainsKey(entryNumber))
             {
                 Console.WriteLine($"{indent}[Folder not found]");
@@ -64,18 +88,38 @@ namespace MFTAnalyzer
             }
 
             var filesAndFolders = filesystem[entryNumber];
-            foreach (var item in filesAndFolders)
+            int count = filesAndFolders.Count;
+            for (int i = 0; i < count; i++)
             {
+                var item = filesAndFolders[i];
+                // Construct the unique path for this item
+                string itemPath = currentPath == "/" ? $"{currentPath}{item.extractedName}" : $"{currentPath}/{item.extractedName}";
+
+                // Check if we've already processed this path to avoid duplication and to prevent parsing the root directory (.) again
+                if (!seenPaths.Add(itemPath) || (item.extractedName.Equals(".") && !isRoot))
+                {
+                    continue; // Skip if already processed or if it's the root directory being processed again
+                }
+
                 bool isFolder = filesystem.ContainsKey(item.entryNumber);
                 if (isFolder)
                 {
-                    Console.WriteLine($"{indent}{item.extractedName}/");
-                    // Recursively call with the updated seenEntries to track processed items
-                    DisplayTree(filesystem, item.entryNumber, indent + "  ", seenEntries);
+                    // Determine the appropriate indent for this item
+                    string newIndent = indent + (isRoot ? "" : "|  ");
+                    // Print the connector with a branch or a corner based on item position
+                    Console.WriteLine($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}/");
+
+                    // Avoid recursion into the root directory marker (.) after the initial root handling
+                    if (!item.extractedName.Equals("."))
+                    {
+                        // Recursively call with the updated seenPaths to track processed items and updated currentPath
+                        DisplayTree(filesystem, item.entryNumber, newIndent + (i < count - 1 ? "|  " : "   "), seenPaths, itemPath, false);
+                    }
                 }
                 else
                 {
-                    Console.WriteLine($"{indent}{item.extractedName}");
+                    // Print file names with the appropriate branching or corner connector
+                    Console.WriteLine($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}");
                 }
             }
         }
@@ -145,7 +189,21 @@ namespace MFTAnalyzer
                         DisplayContents(filesystem, mftFolder);
                         break;
 
-                    
+                    case "find":
+                        if (string.IsNullOrWhiteSpace(argument))
+                        {
+                            Console.WriteLine("Please specify a file name to find.");
+                        }
+                        else
+                        {
+                            HashSet<string> foundPaths = new HashSet<string>();
+                            FindFilePaths(filesystem, argument, 5, "", foundPaths); // Assuming 5 is the root MFT entry
+                            foreach (var path in foundPaths)
+                            {
+                                Console.WriteLine(path); // Print each unique path
+                            }
+                        }
+                        break;
 
                     default:
                         if (!string.IsNullOrWhiteSpace(command))
