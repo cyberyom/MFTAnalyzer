@@ -55,12 +55,12 @@ namespace MFTAnalyzer
         }
         public static void DisplayTree(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int entryNumber, string indent = "", HashSet<string> seenPaths = null, string currentPath = "", bool isRoot = true)
         {
-            if (seenPaths == null) seenPaths = new HashSet<string>();
+            if (seenPaths == null) seenPaths = new HashSet<string>(); // check to make sure nothing gets double printed (error in dictionary creation, low priority)
 
             if (isRoot)
             {
                 Console.WriteLine(".");
-                isRoot = false; // Only the root should be marked as such, subsequent items are not root
+                isRoot = false; // Only the root should be marked as such, subsequent items are not root directory
             }
 
             if (!filesystem.ContainsKey(entryNumber))
@@ -69,8 +69,9 @@ namespace MFTAnalyzer
                 return;
             }
 
-            var filesAndFolders = filesystem[entryNumber];
+            var filesAndFolders = filesystem[entryNumber]; // used for tree
             int count = filesAndFolders.Count;
+
             for (int i = 0; i < count; i++)
             {
                 var item = filesAndFolders[i];
@@ -111,9 +112,9 @@ namespace MFTAnalyzer
             Console.ResetColor();
             Console.WriteLine("'to quit.\n");
 
-            var DisplayContents = Logic.DisplayContents;
-            var filesystem = Logic.filesystem;
-            bool isRunning = true;
+            var DisplayContents = Logic.DisplayContents; // function in parseAttrs
+            var filesystem = Logic.filesystem; // defined in parseAttrs
+            bool isRunning = true; // for exit command
 
 
             while (isRunning)
@@ -122,12 +123,13 @@ namespace MFTAnalyzer
                 Console.Write("MFT Shell");
                 Console.ResetColor();
                 Console.Write(" > ");
+
                 string input = Console.ReadLine().Trim();
                 string[] parts = input.Split(new[] { ' ' }, 2);
                 string command = parts[0].ToLower();
                 string argument = parts.Length > 1 ? parts[1] : null;
 
-                switch (command.ToLower())
+                switch (command.ToLower()) //handle all forms of caps lock
                 {
                     case "exit":
                         Console.WriteLine("Exiting...");
@@ -135,18 +137,18 @@ namespace MFTAnalyzer
                         break;
 
                     case "help":
-                        help();
+                        help(); // help
                         break;
 
                     case "tree":
                         int rootMFT;
                         if (string.IsNullOrWhiteSpace(argument))
                         {
-                            rootMFT = 5; //root directory is 5
+                            rootMFT = 5; // MFT root
                         }
                         else
                         {
-                            rootMFT = FindMFTEntryByFolderName(filesystem, argument);
+                            rootMFT = FindMFTEntryByFolderName(filesystem, argument); // sets the root dir for tree to be the file passed 
                             if (rootMFT == -1)
                             {
                                 Console.WriteLine($"Folder '{argument}' not found.");
@@ -156,7 +158,7 @@ namespace MFTAnalyzer
                         DisplayTree(filesystem, rootMFT);
                         break;
 
-                    case "ls":
+                    case "ls": // view contents of directories
                         int mftFolder;
                         if (string.IsNullOrWhiteSpace(argument))
                         {
@@ -174,6 +176,7 @@ namespace MFTAnalyzer
                         DisplayContents(filesystem, mftFolder);
                         break;
 
+                    // find files
                     case "find":
                         if (string.IsNullOrWhiteSpace(argument))
                         {
@@ -182,7 +185,7 @@ namespace MFTAnalyzer
                         else
                         {
                             HashSet<string> foundPaths = new HashSet<string>();
-                            FindFilePaths(filesystem, argument, 5, "", foundPaths);
+                            FindFilePaths(filesystem, argument, 5, "", foundPaths); // Assuming 5 is the root MFT entry
                             foreach (var path in foundPaths)
                             {
                                 Console.WriteLine(path); // Print each unique path
