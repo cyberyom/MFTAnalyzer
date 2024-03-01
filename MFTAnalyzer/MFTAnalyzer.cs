@@ -21,7 +21,7 @@ namespace MFTAnalyzer
     {
         static readonly byte[] targetBytes = { 0x46, 0x49, 0x4C, 0x45 }; // FILE header
 
-        static readonly Dictionary<int, string> attrTypeMap = new Dictionary<int, string>
+        static readonly Dictionary<int, string> attrTypeMap = new Dictionary<int, string> // dictionary of MFT Attributes
         {
             { 0x10, "$STANDARD_INFORMATION" },
             { 0x20, "$ATTRIBUTE_LIST" },
@@ -40,30 +40,34 @@ namespace MFTAnalyzer
             { 0xF0, "$PROPERTY_SET" },
         };
 
-        public static List<byte[]> extractMFT(string filePath, bool? searchName, bool? searchMFT, bool? shell)
+        public static List<byte[]> extractMFT(string filePath, bool? searchName, bool? searchMFT, bool? shell) //first processing period, this will extract all mft entries from a file passed 
         {
-            List<byte[]> mftEntries = new List<byte[]>();
+            if (shell == true) { Console.WriteLine("    Carving MFT Entries...\n"); } // verbose output indiciation start of function (only if shell = true)
+
+            List<byte[]> mftEntries = new List<byte[]>(); // make list for mft entries
 
 
             if (!File.Exists(filePath))
             {
                 Console.WriteLine("File does not exist");
-                return mftEntries;
+                return mftEntries; // check for file
             }
-            if (shell == true) { Console.WriteLine("    Carving MFT Entries...\n"); }
+
+            //Initialize variables for processing
             byte[] fileBytes = File.ReadAllBytes(filePath);
             int startSearchOffset = 0;
             bool foundAny = false;
 
             while (startSearchOffset < fileBytes.Length)
             {
-                int offset = FindTargetBytesOffset(fileBytes, targetBytes, startSearchOffset);
+                int offset = FindTargetBytesOffset(fileBytes, targetBytes, startSearchOffset); // loops to find all FILE headers
 
                 if (offset == -1)
                 {
                     if (!foundAny) Console.WriteLine("No MFT Entry extracted or an error occurred.");
                     break;
                 }
+
                 foundAny = true;
 
                 //find the logical size of the entry
@@ -90,15 +94,18 @@ namespace MFTAnalyzer
                     break;
                 }
             }
-            if (shell == true) { Console.WriteLine("    Analyzing MFT Entries...\n"); }
-            if (searchName == true) { parseMFT(mftEntries, searchName, null, null); }
+
+            if (shell == true) { Console.WriteLine("    Analyzing MFT Entries...\n"); } // verbosity for console output, indiciates the start of parse MFT
+            // this is becayse certian variables can be passed and certian ones wont be
+            if (searchName == true) { parseMFT(mftEntries, searchName, null, null); } 
             else if (searchMFT == true) { parseMFT(mftEntries, null, searchMFT, null); }
             else if (shell == true) { parseMFT(mftEntries, null, null, shell); }
             else parseMFT(mftEntries, null, null, null);
+
             return mftEntries;
         }
 
-        public static void parseMFT(List<byte[]> mftEntries, bool? searchName, bool? searchMFT, bool? shell)
+        public static void parseMFT(List<byte[]> mftEntries, bool? searchName, bool? searchMFT, bool? shell) // this function sets variables needed to parse mft entries. Maybe this is faster inside of parse Attrs
         {
             foreach (var mftEntry in mftEntries)
             {
@@ -113,8 +120,8 @@ namespace MFTAnalyzer
             }
         }
 
-        public static Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem = new Dictionary<int, List<(string, int)>>();
-        public static void DisplayContents(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int mftFolder, HashSet<int> seenEntries = null)
+        public static Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem = new Dictionary<int, List<(string, int)>>(); // Dictionary initialization for SHELL (only gets populated if shell is enabled)
+        public static void DisplayContents(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int mftFolder, HashSet<int> seenEntries = null) // function used for commands in shell mode (needs to be here in this function because of MFT entry offsets)
         {
             if (seenEntries == null) seenEntries = new HashSet<int>();
 
@@ -136,48 +143,49 @@ namespace MFTAnalyzer
             }
         }
 
-        public static string parseAttrs(byte[] mftEntry, short firstAttr, int logicalSize, uint mftNumber, bool? searchName, bool? searchMFT, bool? shell)
+        public static string parseAttrs(byte[] mftEntry, short firstAttr, int logicalSize, uint mftNumber, bool? searchName, bool? searchMFT, bool? shell) // main function that builds the tables and rebuilds the filesystem
         {
             tableCreation tableInstance = new tableCreation(); //initialize class
-            StringBuilder mftTable = new StringBuilder();
+            StringBuilder mftTable = new StringBuilder(); //create string called mft table using string  builder, for all the tables below
 
-            string entryTable = "";
+            string entryTable = ""; //initialize empty string
 
             if (shell != true)
             {
-                entryTable = tableInstance.entryHeader(mftEntry);
-                mftTable.Append(entryTable);
+                entryTable = tableInstance.entryHeader(mftEntry); // pass entryheader to table instance (this is the template for the entry header)
+                mftTable.Append(entryTable); //add the table to mftTable
             }
 
-            int currentOffset = firstAttr;
+            int currentOffset = firstAttr; //sets first attribute offset to currentoffset 
 
 
-            while (currentOffset < logicalSize && currentOffset + 4 < mftEntry.Length)
+            while (currentOffset < logicalSize && currentOffset + 4 < mftEntry.Length) //starts while loop to process all mft entries
             {
-                int attrType = BitConverter.ToInt32(mftEntry, currentOffset);
+                int attrType = BitConverter.ToInt32(mftEntry, currentOffset); // sets the attribute type bytes to attrtype as integer 
+
                 if (attrType == -1)
                     break;
 
                 string attrTypeName;
 
-                if (attrTypeMap.TryGetValue(attrType, out attrTypeName))
+                if (attrTypeMap.TryGetValue(attrType, out attrTypeName)) // dictionary at top of class 'logic'
                 {
                     //try to extract filename and print for header
-                    if (attrTypeName.Contains ("$FILE_NAME") && shell != true) 
+                    if (attrTypeName.Contains ("$FILE_NAME") && shell != true) //this needs to be like this. This was very crafty and sneaky, and conceptually difficult to figure out
                     {
                         int nameSize = mftEntry[currentOffset + 88];
                         string fileName = Encoding.Unicode.GetString(mftEntry, currentOffset + 90, nameSize * 2);
                         Console.WriteLine("     Showing MFT Entry for file: " + fileName + " - MFT Entry: " + mftNumber);
                     }
 
-                    switch (attrTypeName) 
+                    switch (attrTypeName) //switch statement to handle all attributes. Note that this was a recent focus, and some things are old and new
                     { 
                         case "$STANDARD_INFORMATION":
                             tableInstance.attrHeader(mftEntry, currentOffset, attrTypeName);
                             string standardInfo = tableInstance.standardInfo(mftEntry, currentOffset);
                             if (shell != true)
                             {
-                                mftTable.Append("\n Attribute: $STANDARD_INFORMATION\n" + standardInfo + "\n");
+                                mftTable.Append("\n Attribute: $STANDARD_INFORMATION\n" + standardInfo + "\n"); //new way to do handle the table (add to mftTable)
                             }
                             break;
 
@@ -186,14 +194,14 @@ namespace MFTAnalyzer
                             string attributeList = tableInstance.attrList(mftEntry, currentOffset);
                             if (shell != true)
                             {
-                                Console.WriteLine(" Attribute: $ATTRIBUTE_LIST" + attributeList);
+                                Console.WriteLine(" Attribute: $ATTRIBUTE_LIST" + attributeList); // old way to handle table (print directly to screen)
                             }
                             break;
 
-                        case "$FILE_NAME":
+                        case "$FILE_NAME": //this needs to be here in order to accurately parse the attributes (I think)
                             tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
                             int nameSize = mftEntry[currentOffset + 88];
-                            string fileName = Encoding.Unicode.GetString(mftEntry, currentOffset + 90, nameSize * 2);
+                            string fileName = Encoding.Unicode.GetString(mftEntry, currentOffset + 90, nameSize * 2); //needed to define thig again as fileName and fileSize was defined outside of the current scope
                             string fileNameTable = tableInstance.fileName(mftEntry, currentOffset);
                             int parentMFTnumber = BitConverter.ToInt32(mftEntry, currentOffset + 24);
                             if (shell != true)
@@ -201,7 +209,7 @@ namespace MFTAnalyzer
                                 mftTable.Append("\n Attribute: $FILE_NAME\n" + fileNameTable + "\n");
                             }
 
-                            if (!filesystem.ContainsKey(parentMFTnumber))
+                            if (!filesystem.ContainsKey(parentMFTnumber)) 
                             {
                                 filesystem[parentMFTnumber] = new List<(string, int)>();
                             }
@@ -339,7 +347,7 @@ namespace MFTAnalyzer
                             break;
                     }
                 }
-                int attrLength = BitConverter.ToInt32(mftEntry, currentOffset + 4);
+                int attrLength = BitConverter.ToInt32(mftEntry, currentOffset + 4); 
                 if (attrLength <= 0) // Sanity check to prevent infinite loop
                     break;
                 currentOffset += attrLength; // Move to the next attribute
@@ -349,12 +357,12 @@ namespace MFTAnalyzer
             }
             if (shell != true)
             {
-                Console.WriteLine(mftTable);
+                Console.WriteLine(mftTable); // prints mftTable
             }
             return null;
         }
 
-        private static int FindTargetBytesOffset(byte[] fileBytes, byte[] targetBytes, int startOffset)
+        private static int FindTargetBytesOffset(byte[] fileBytes, byte[] targetBytes, int startOffset) // used to find all instances of FILE header for entry
         {
             for (int i = startOffset; i <= fileBytes.Length - targetBytes.Length; i++)
             {
@@ -421,7 +429,7 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
             bool shellArgumentPresent = args.Contains("--shell");
             asciiArt();
 
-            // Determine the filePath and fullPath outside of the switch-case to avoid duplication
+            // setting strings to initialize $MFT passed
             string filePath = args.Length > 0 ? args[0] : null;
             string fullPath = filePath != null ? Path.GetFullPath(filePath) : null;
 
@@ -431,11 +439,11 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
             }
             else if (shellArgumentPresent)
             {
-                ProcessShellArgument(fullPath); // Process shell argument separately
+                ProcessShellArgument(fullPath); // Process shell argument separately, as this wont output anything to screen
             }
             else
             {
-                ProcessFlags(args, fullPath); // Handle other arguments
+                ProcessFlags(args, fullPath); // Handle other arguments, not added yet tho
             }
         }
 
@@ -458,7 +466,7 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
             if (fullPath != null && !args.Contains("--shell"))
             {
                 WarnIfLargeFile(fullPath); // Warn if the file is large, applicable for non-shell operations too
-                Logic.extractMFT(fullPath, searchName, searchMFT, false); // Ensure shell is false here
+                Logic.extractMFT(fullPath, searchName, searchMFT, false); // shell flag false, as this is in the else statement
             }
         }
 
@@ -466,7 +474,7 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
         {
             FileInfo fileInfo = new FileInfo(filePath);
             long sizeInBytes = fileInfo.Length;
-            const long thresholdSize = 10000000; 
+            const long thresholdSize = 100000000; // 100 MB 
 
             if (sizeInBytes > thresholdSize)
             {
