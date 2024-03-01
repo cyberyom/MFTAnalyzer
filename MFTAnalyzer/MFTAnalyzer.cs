@@ -466,7 +466,7 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
         {
             FileInfo fileInfo = new FileInfo(filePath);
             long sizeInBytes = fileInfo.Length;
-            const long thresholdSize = 10000000; // 10 MB for example
+            const long thresholdSize = 10000000; 
 
             if (sizeInBytes > thresholdSize)
             {
