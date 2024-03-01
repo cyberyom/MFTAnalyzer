@@ -142,7 +142,7 @@ namespace MFTAnalyzer
                         int rootMFT;
                         if (string.IsNullOrWhiteSpace(argument))
                         {
-                            rootMFT = 5; // Assuming root directory's MFT entry, adjust as needed
+                            rootMFT = 5; //root directory is 5
                         }
                         else
                         {
@@ -160,11 +160,11 @@ namespace MFTAnalyzer
                         int mftFolder;
                         if (string.IsNullOrWhiteSpace(argument))
                         {
-                            mftFolder = 5; // Adjust this value as needed
+                            mftFolder = 5;
                         }
                         else
                         {
-                            mftFolder = FindMFTEntryByFolderName(filesystem, argument); // Corrected call
+                            mftFolder = FindMFTEntryByFolderName(filesystem, argument); 
                             if (mftFolder == -1)
                             {
                                 Console.WriteLine($"Folder '{argument}' not found.");
@@ -182,7 +182,7 @@ namespace MFTAnalyzer
                         else
                         {
                             HashSet<string> foundPaths = new HashSet<string>();
-                            FindFilePaths(filesystem, argument, 5, "", foundPaths); // Assuming 5 is the root MFT entry
+                            FindFilePaths(filesystem, argument, 5, "", foundPaths);
                             foreach (var path in foundPaths)
                             {
                                 Console.WriteLine(path); // Print each unique path
