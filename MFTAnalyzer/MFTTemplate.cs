@@ -1,3 +1,5 @@
+// This file is simply used to parse the MFT file. All that is here are functions to parse MFT raw data and functions to create tables
+
 using System;
 using System.Security.Cryptography;
 using System.Text;
