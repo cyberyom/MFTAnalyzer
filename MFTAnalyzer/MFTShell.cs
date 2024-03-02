@@ -1,482 +1,473 @@
-
-// This is a refactor for MFTAnalyzer by CyberYom
-// MFTAnalyzer was origonally written in Python, and is currently being refactored in C#
-// This project lives in Github
-
+using Alba.CsConsoleFormat;
 using System;
-using System.IO;
-using System.Diagnostics; 
-using System.Collections.Concurrent;
-using System.ComponentModel.Design;
 using System.Text;
-using System.Threading.Channels;
-using System.Xml;
-using System.Security.Cryptography;
-using System.Collections.Generic;
-using System.IO.Enumeration;
 
 namespace MFTAnalyzer
 {
-    public class Logic
+    public class Shell
     {
-        static readonly byte[] targetBytes = { 0x46, 0x49, 0x4C, 0x45 }; // FILE header
-
-        static readonly Dictionary<int, string> attrTypeMap = new Dictionary<int, string> // dictionary of MFT Attributes
+        static void help()
         {
-            { 0x10, "$STANDARD_INFORMATION" },
-            { 0x20, "$ATTRIBUTE_LIST" },
-            { 0x30, "$FILE_NAME" },
-            { 0x40, "$OBJECT_ID" },
-            { 0x50, "$SECURITY_DESCRIPTOR" },
-            { 0x60, "$VOLUME_NAME" },
-            { 0x70, "$VOLUME_INFORMATION" },
-            { 0x80, "$DATA" },
-            { 0x90, "$INDEX_ROOT" },
-            { 0xA0, "$INDEX_ALLOCATION" },
-            { 0xB0, "$BITMAP" },
-            { 0xC0, "$REPARSE_POINT" },
-            { 0xD0, "$EA_INFORMATION" },
-            { 0xE0, "$EA" },
-            { 0xF0, "$PROPERTY_SET" },
-        };
-
-        public static List<byte[]> extractMFT(string filePath, bool? searchName, bool? searchMFT, bool? shell) //first processing period, this will extract all mft entries from a file passed 
-        {
-            if (shell == true) { Console.WriteLine("    Carving MFT Entries...\n"); } // verbose output indiciation start of function (only if shell = true)
-
-            List<byte[]> mftEntries = new List<byte[]>(); // make list for mft entries
-
-
-            if (!File.Exists(filePath))
-            {
-                Console.WriteLine("File does not exist");
-                return mftEntries; // check for file
-            }
-
-            //Initialize variables for processing
-            byte[] fileBytes = File.ReadAllBytes(filePath);
-            int startSearchOffset = 0;
-            bool foundAny = false;
-
-            while (startSearchOffset < fileBytes.Length)
-            {
-                int offset = FindTargetBytesOffset(fileBytes, targetBytes, startSearchOffset); // loops to find all FILE headers
-
-                if (offset == -1)
-                {
-                    if (!foundAny) Console.WriteLine("No MFT Entry extracted or an error occurred.");
-                    break;
-                }
-
-                foundAny = true;
-
-                //find the logical size of the entry
-                int logicalSizeBytesOffset = offset + targetBytes.Length + 20;
-                byte[] logicalSizeBytes = new byte[4];
-                Array.Copy(fileBytes, logicalSizeBytesOffset, logicalSizeBytes, 0, 4);
-                int logicalSize = BitConverter.ToInt32(logicalSizeBytes, 0);
-
-                //carves each mft entry
-                byte[] mftEntry = new byte[logicalSize];
-                Array.Copy(fileBytes, offset, mftEntry, 0, logicalSize);
-                startSearchOffset = offset + logicalSize;
-                mftEntries.Add(mftEntry);
-
-                if (logicalSizeBytesOffset + 4 > fileBytes.Length)
-                {
-                    Console.WriteLine("The specified range exceeds the file's length.");
-                    break;
-                }
-
-                if (offset + logicalSize > fileBytes.Length)
-                {
-                    Console.WriteLine("Attempting to read beyond the file's end.");
-                    break;
-                }
-            }
-
-            if (shell == true) { Console.WriteLine("    Analyzing MFT Entries...\n"); } // verbosity for console output, indiciates the start of parse MFT
-            // this is becayse certian variables can be passed and certian ones wont be
-            if (searchName == true) { parseMFT(mftEntries, searchName, null, null); } 
-            else if (searchMFT == true) { parseMFT(mftEntries, null, searchMFT, null); }
-            else if (shell == true) { parseMFT(mftEntries, null, null, shell); }
-            else parseMFT(mftEntries, null, null, null);
-
-            return mftEntries;
+            Console.WriteLine("     Available Commands:");
+            Console.WriteLine("help\n└────── Display the help menu\n");
+            Console.WriteLine("tree\n└────── Display the file structure of current directory and below. Note that 'tree .' can be used to view the whole disk\n");
+            Console.WriteLine("ls\n└────── View the contents of a Directory\n");
+            Console.WriteLine("cat\n└────── View MFT entry for file using MFT entry\n");
+            Console.WriteLine("find\n└────── Find MFT entry for specific file\n");
+            Console.WriteLine("carve\n└────── Carve the contents of resident files, return offsets needed to carve fir non-resident files\n");
+            Console.WriteLine("clear\n└────── Clear the screen\n");
+            Console.WriteLine("exit\n└────── Exit the shell\n");
         }
 
-        public static void parseMFT(List<byte[]> mftEntries, bool? searchName, bool? searchMFT, bool? shell) // this function sets variables needed to parse mft entries. Maybe this is faster inside of parse Attrs
+        private static void parseMFT(List<byte[]> mftEntries, int unitValue, bool catFlag)
         {
-            foreach (var mftEntry in mftEntries)
-            {
-                short firstAttr = BitConverter.ToInt16(mftEntry, 20);
-                int logicalSize = BitConverter.ToInt32(mftEntry, 24);
-                uint mftNumber = BitConverter.ToUInt32(mftEntry, 44);
+            bool found = false;
 
-                if (shell == true) { parseAttrs(mftEntry, firstAttr, logicalSize, mftNumber, null, null, shell); }
-                else if (searchName == true) { parseAttrs(mftEntry, firstAttr, logicalSize, mftNumber, searchName, null, null); }
-                else if (searchMFT == true) { parseAttrs(mftEntry, firstAttr, logicalSize, mftNumber, null, searchMFT, null); }
-                else parseAttrs(mftEntry, firstAttr, logicalSize, mftNumber, null, null, null);
+            foreach (var entry in mftEntries)
+            {
+                if (entry.Length >= 48) // Ensure the entry is long enough to contain the offset
+                {
+                    // Read the unit value at offset 44
+                    int entryUnitValue = BitConverter.ToInt32(entry, 44);
+
+                    if (entryUnitValue == unitValue)
+                    {
+                        tableCreation tableInstance = new tableCreation(); //initialize class
+                        StringBuilder mftTable = new StringBuilder();
+                        string fileName = "";
+                        string entryTable;
+                        int currentOffset = BitConverter.ToInt16(entry, 20);
+                        int logicalSize = BitConverter.ToInt32(entry, 24);
+                        int fileContentLen = 0;
+                        ulong startCluster = 0;
+                        ulong endCluster = 0;
+                        short dataRunOffset = 0;
+                        ulong carveSize = 0;
+                        string fileContent = "";
+                        bool? resident = null;
+
+                        entryTable = tableInstance.entryHeader(entry);
+
+                        if (catFlag == true) { mftTable.Append(entryTable); }
+
+                        while (currentOffset < logicalSize && currentOffset + 4 < entry.Length) //starts while loop to process all mft entries
+                        {
+                            int attrType = BitConverter.ToInt32(entry, currentOffset); // sets the attribute type bytes to attrtype as integer 
+
+                            if (attrType == -1)
+                                break;
+
+                            string attrTypeName;
+
+                            if (Logic.attrTypeMap.TryGetValue(attrType, out attrTypeName)) // dictionary at top of class 'logic'
+                            {
+                                //try to extract filename and print for header
+                                if (attrTypeName == "$FILE_NAME")
+                                {
+                                    // Extract the filename
+                                    int nameSize = entry[currentOffset + 88];
+                                    fileName = Encoding.Unicode.GetString(entry, currentOffset + 90, nameSize * 2);
+                                    int parentMFTnumber = BitConverter.ToInt32(entry, currentOffset + 24);
+                                }
+
+                                switch (attrTypeName) //switch statement to handle all attributes. Note that this was a recent focus, and some things are old and new
+                                {
+                                    case "$STANDARD_INFORMATION":
+                                        tableInstance.attrHeader(entry, currentOffset, attrTypeName);
+                                        string standardInfo = tableInstance.standardInfo(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $STANDARD_INFORMATION\n" + standardInfo + "\n"); }
+                                        break;
+
+                                    case "$ATTRIBUTE_LIST":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string attributeList = tableInstance.attrList(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $ATTRIBUTE_LIST\n" + attributeList + "\n"); }
+                                        break;
+
+                                    case "$FILE_NAME": //this needs to be here in order to accurately parse the attributes (I think)
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        int nameSize = entry[currentOffset + 88];
+                                        fileName = Encoding.Unicode.GetString(entry, currentOffset + 90, nameSize * 2); //needed to define thig again as fileName and fileSize was defined outside of the current scope
+                                        string fileNameTable = tableInstance.fileName(entry, currentOffset);
+                                        int parentMFTnumber = BitConverter.ToInt32(entry, currentOffset + 24);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $FILE_NAME\n" + fileNameTable + "\n"); }
+                                        break;
+
+                                    case "$OBJECT_ID":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string objectID = tableInstance.objectID(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $OBJECT_ID\n" + objectID + "\n"); }
+                                        break;
+
+                                    case "$SECURITY_DESCRIPTOR":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string securityDescriptor = tableInstance.securityDescriptor(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $SECURITY_DESCRIPTOR\n" + securityDescriptor + "\n"); }
+                                        break;
+
+                                    case "$VOLUME_NAME":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string volumeName = tableInstance.volumeName(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $VOLUME_NAME\n" + volumeName + "\n"); }
+                                        break;
+
+                                    case "$VOLUME_INFORMATION":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string volumeInformation = tableInstance.volumeInformation(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $VOLUME_INFORMATION\n" + volumeInformation + "\n"); }
+                                        break;
+
+                                    case "$DATA":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string data = tableInstance.data(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $DATA\n" + data + "\n"); }
+
+                                        byte nonResidentFlag = entry[currentOffset + 8]; // The non-resident flag is at offset 8 from the start of the attribute
+
+                                        if (nonResidentFlag == 0) // Resident
+                                        {
+                                            resident = true;
+
+                                            // For resident attributes, the content size is at offset 16 from the attribute start, and content starts at offset 22
+                                            int contentSize = BitConverter.ToInt32(entry, currentOffset + 16);
+                                            int contentOffset = currentOffset + 22;
+
+                                            // Ensure reading content does not exceed entry bounds
+                                            if (contentOffset + contentSize <= entry.Length)
+                                            {
+                                                fileContent = Encoding.ASCII.GetString(entry, contentOffset, contentSize);
+                                            }
+                                            else
+                                            {
+                                                // Handle error: content size exceeds entry bounds
+                                                Console.WriteLine("Error: Content size exceeds entry bounds.");
+                                            }
+                                        }
+                                        else // Non-resident
+                                        {
+                                            resident = false;
+                                            startCluster = BitConverter.ToUInt64(entry, currentOffset + 16);
+                                            endCluster = BitConverter.ToUInt64(entry, currentOffset + 24);
+                                            dataRunOffset = BitConverter.ToInt16(entry, currentOffset + 32);
+                                            carveSize = BitConverter.ToUInt64(entry, currentOffset + 40);
+                                        }
+                                        break;
+
+                                    case "$INDEX_ROOT":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string indexRoot = tableInstance.indexRoot(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $INDEX_ROOT\n" + indexRoot + "\n"); }
+                                        break;
+
+                                    case "$INDEX_ALLOCATION":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string indexAllocation = tableInstance.indexAllocation(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $INDEX_ALLOCATION\n" + indexAllocation + "\n"); }
+                                        break;
+
+                                    case "$BITMAP":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string bitmap = tableInstance.bitmap(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $BITMAP\n" + bitmap + "\n"); }
+                                        break;
+
+                                    case "$REPARSE_POINT":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string reparsePoint = tableInstance.reparsePoint(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $REPARSE_POINT\n" + reparsePoint + "\n"); }
+                                        break;
+
+                                    case "$EA_INFORMATION":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string eaInformation = tableInstance.eaInformation(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $EA_INFORMATION\n" + eaInformation + "\n"); }
+                                        break;
+
+                                    case "$EA":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string ea = tableInstance.ea(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $EA\n" + ea + "\n"); }
+                                        break;
+
+                                    case "$PROPERTY_SET":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string propertySet = tableInstance.propertySet(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $PROPERTY_SET\n" + propertySet + "\n"); }
+                                        break;
+
+                                    case "$LOGGED_UTILITY_STREAM":
+                                        tableInstance.attrHeader(entry, 0 + currentOffset, attrTypeName);
+                                        string loggedUtilityStream = tableInstance.loggedUtilityStream(entry, currentOffset);
+                                        if (catFlag == true) { mftTable.Append("\n Attribute: $LOGGED_UTILITY_STREAM\n" + loggedUtilityStream + "\n"); }
+                                        break;
+                                }
+                                
+                            }
+                            int attrLength = BitConverter.ToInt32(entry, currentOffset + 4);
+                            if (attrLength <= 0) break; // Sanity check
+                            currentOffset += attrLength; // Move to next attribute 
+                        }
+                        if (catFlag == true)
+                        {
+                            Console.WriteLine("     Showing MFT Entry for file: " + fileName);
+                            Console.WriteLine(mftTable);
+                        }
+                        if (resident == true)
+                        {
+                            Console.WriteLine("Data was successfully dumped to '" + fileName + "'.");
+                            Console.WriteLine("└────── File Size: SIZE");
+                            Console.WriteLine("└────── File Created At: TIME\n");
+                            Console.WriteLine("Content:\n---------------------------------------------------");
+                            Console.WriteLine(fileContent);
+                        }
+                        if (resident == false && catFlag != true)
+                        {
+                            Console.WriteLine("Note that this file is non-resident and thus can not be carved from the $MFT.\n");
+                            Console.WriteLine("  Statistics for " + fileName);
+                            Console.WriteLine("└────── Starting Cluster:" + startCluster);
+                            Console.WriteLine("└────── Ending Cluster:" + endCluster);
+                            Console.WriteLine("└────── Datarun Offset:" + dataRunOffset);
+                            Console.WriteLine("└────── File Size to Carve:" + carveSize);
+                        }
+
+                    }
+
+                }
+
             }
         }
 
-        public static Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem = new Dictionary<int, List<(string, int)>>(); // Dictionary initialization for SHELL (only gets populated if shell is enabled)
-        public static void DisplayContents(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int mftFolder, HashSet<int> seenEntries = null) // function used for commands in shell mode (needs to be here in this function because of MFT entry offsets)
+        static int FindMFTEntryByFolderName(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, string folderName)
         {
-            if (seenEntries == null) seenEntries = new HashSet<int>();
-
-            if (!filesystem.ContainsKey(mftFolder))
+            foreach (var entry in filesystem)
             {
-                Console.WriteLine("Folder not found.");
+                foreach (var file in entry.Value)
+                {
+                    if (file.extractedName.Equals(folderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return file.entryNumber; // Return the MFT entry number
+                    }
+                }
+            }
+            return -1; // Indicate that the folder was not found
+        }
+
+        static void FindFilePaths(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, string filename, int entryNumber, string currentPath, HashSet<string> foundPaths)
+        {
+            if (!filesystem.ContainsKey(entryNumber))
+            {
+                return; // Directory does not exist in the filesystem
+            }
+
+            foreach (var item in filesystem[entryNumber])
+            {
+                string itemPath = currentPath == "" ? item.extractedName : $"/{currentPath}/{item.extractedName}";
+
+                if (item.extractedName.Equals(filename, StringComparison.OrdinalIgnoreCase))
+                {
+                    foundPaths.Add(itemPath); // Add the path to the set of found paths
+                }
+
+                if (filesystem.ContainsKey(item.entryNumber) && !item.extractedName.Equals(".") && !item.extractedName.Equals(".."))
+                {
+                    FindFilePaths(filesystem, filename, item.entryNumber, itemPath, foundPaths);
+                }
+            }
+        }
+        static void DisplayTree(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int entryNumber, string indent = "", HashSet<string> seenPaths = null, string currentPath = "", bool isRoot = true)
+        {
+            if (seenPaths == null) seenPaths = new HashSet<string>(); // check to make sure nothing gets double printed (error in dictionary creation, low priority)
+
+            if (isRoot)
+            {
+                Console.WriteLine(".");
+                isRoot = false; // Only the root should be marked as such, subsequent items are not root directory
+            }
+
+            if (!filesystem.ContainsKey(entryNumber))
+            {
+                Console.WriteLine($"{indent}[Folder not found]");
                 return;
             }
 
-            var contents = filesystem[mftFolder];
-            foreach (var item in contents)
+            var filesAndFolders = filesystem[entryNumber]; // used for tree
+            int count = filesAndFolders.Count;
+
+            for (int i = 0; i < count; i++)
             {
-                if (!seenEntries.Add(item.entryNumber))
+                var item = filesAndFolders[i];
+                string itemPath = currentPath == "/" ? $"{currentPath}{item.extractedName}" : $"{currentPath}/{item.extractedName}";
+
+                if (!seenPaths.Add(itemPath) || (item.extractedName.Equals(".") && !isRoot))
                 {
-                    continue; // Skip this item if it has already been processed
+                    continue; // Skip if already processed or if it's the root directory being processed again
                 }
 
-                Console.WriteLine($"{item.extractedName} (Entry: {item.entryNumber})");
-            }
-        }
-
-        public static string parseAttrs(byte[] mftEntry, short firstAttr, int logicalSize, uint mftNumber, bool? searchName, bool? searchMFT, bool? shell) // main function that builds the tables and rebuilds the filesystem
-        {
-            tableCreation tableInstance = new tableCreation(); //initialize class
-            StringBuilder mftTable = new StringBuilder(); //create string called mft table using string  builder, for all the tables below
-
-            string entryTable = ""; //initialize empty string
-
-            if (shell != true)
-            {
-                entryTable = tableInstance.entryHeader(mftEntry); // pass entryheader to table instance (this is the template for the entry header)
-                mftTable.Append(entryTable); //add the table to mftTable
-            }
-
-            int currentOffset = firstAttr; //sets first attribute offset to currentoffset 
-
-
-            while (currentOffset < logicalSize && currentOffset + 4 < mftEntry.Length) //starts while loop to process all mft entries
-            {
-                int attrType = BitConverter.ToInt32(mftEntry, currentOffset); // sets the attribute type bytes to attrtype as integer 
-
-                if (attrType == -1)
-                    break;
-
-                string attrTypeName;
-
-                if (attrTypeMap.TryGetValue(attrType, out attrTypeName)) // dictionary at top of class 'logic'
+                bool isFolder = filesystem.ContainsKey(item.entryNumber);
+                if (isFolder)
                 {
-                    //try to extract filename and print for header
-                    if (attrTypeName.Contains ("$FILE_NAME") && shell != true) //this needs to be like this. This was very crafty and sneaky, and conceptually difficult to figure out
+                    string newIndent = indent + (isRoot ? "" : "|  ");
+                    Console.WriteLine($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}/  (Entry {item.entryNumber})");
+
+                    if (!item.extractedName.Equals("."))
                     {
-                        int nameSize = mftEntry[currentOffset + 88];
-                        string fileName = Encoding.Unicode.GetString(mftEntry, currentOffset + 90, nameSize * 2);
-                        Console.WriteLine("     Showing MFT Entry for file: " + fileName + " - MFT Entry: " + mftNumber);
-                    }
-
-                    switch (attrTypeName) //switch statement to handle all attributes. Note that this was a recent focus, and some things are old and new
-                    { 
-                        case "$STANDARD_INFORMATION":
-                            tableInstance.attrHeader(mftEntry, currentOffset, attrTypeName);
-                            string standardInfo = tableInstance.standardInfo(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $STANDARD_INFORMATION\n" + standardInfo + "\n"); //new way to do handle the table (add to mftTable)
-                            }
-                            break;
-
-                        case "$ATTRIBUTE_LIST":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string attributeList = tableInstance.attrList(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $ATTRIBUTE_LIST\n" + attributeList + "\n"); //new way to do handle the table (add to mftTable)
-                            }
-                            break;
-
-                        case "$FILE_NAME": //this needs to be here in order to accurately parse the attributes (I think)
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            int nameSize = mftEntry[currentOffset + 88];
-                            string fileName = Encoding.Unicode.GetString(mftEntry, currentOffset + 90, nameSize * 2); //needed to define thig again as fileName and fileSize was defined outside of the current scope
-                            string fileNameTable = tableInstance.fileName(mftEntry, currentOffset);
-                            int parentMFTnumber = BitConverter.ToInt32(mftEntry, currentOffset + 24);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $FILE_NAME\n" + fileNameTable + "\n");
-                            }
-
-                            if (!filesystem.ContainsKey(parentMFTnumber)) 
-                            {
-                                filesystem[parentMFTnumber] = new List<(string, int)>();
-                            }
-                                
-                            int mftNumberInt = unchecked((int)mftNumber);
-                            filesystem[parentMFTnumber].Add((fileName, mftNumberInt));
-
-                            break;
-
-                        case "$OBJECT_ID":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string objectID = tableInstance.objectID(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $OBJECT_ID\n" + objectID + "\n"); //new way to do handle the table (add to mftTable)
-                            }
-                            break;
-
-                        case "$SECURITY_DESCRIPTOR":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string securityDescriptor = tableInstance.securityDescriptor(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $SECURITY_DESCRIPTOR\n" + securityDescriptor + "\n"); //new way to do handle the table (add to mftTable)
-
-                            }
-                            break;
-
-                        case "$VOLUME_NAME":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string volumeName = tableInstance.volumeName(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $VOLUME_NAME\n" + volumeName + "\n"); //new way to do handle the table (add to mftTable)
-                            }
-                            break;
-
-                        case "$VOLUME_INFORMATION":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string volumeInformation = tableInstance.volumeInformation(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $VOLUME_INFORMATION\n" + volumeInformation + "\n"); //new way to do handle the table (add to mftTable)
-                            }
-                            break;
-
-                        case "$DATA":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string data = tableInstance.data(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $DATA\n" + data + "\n");
-                            }
-                            break;
-
-                        case "$INDEX_ROOT":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string indexRoot = tableInstance.indexRoot(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $INDEX_ROOT\n" + indexRoot + "\n");
-                            }
-                            break;
-
-                        case "$INDEX_ALLOCATION":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string indexAllocation = tableInstance.indexAllocation(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $INDEX_ALLOCATION\n" + indexAllocation + "\n");
-                            }
-                            break;
-
-                        case "$BITMAP":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string bitmap = tableInstance.bitmap(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $BITMAP\n" + bitmap + "\n");
-                            }
-                            break;
-
-                        case "$REPARSE_POINT":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string reparsePoint = tableInstance.reparsePoint(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $REPARSE_POINT\n" + reparsePoint + "\n");
-                            }
-                            break;
-
-                        case "$EA_INFORMATION":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string eaInformation = tableInstance.eaInformation(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $EA_INFORMATION\n" + eaInformation + "\n");
-                            }
-                            break;
-
-                        case "$EA":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string ea = tableInstance.ea(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $EA\n" + ea + "\n");
-                            }
-                            break;
-
-                        case "$PROPERTY_SET":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string propertySet = tableInstance.propertySet(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $PROPERTY_SET\n" + propertySet + "\n");
-                            }
-                            break;
-
-                        case "$LOGGED_UTILITY_STREAM":
-                            tableInstance.attrHeader(mftEntry, 0 + currentOffset, attrTypeName);
-                            string loggedUtilityStream = tableInstance.loggedUtilityStream(mftEntry, currentOffset);
-                            if (shell != true)
-                            {
-                                mftTable.Append("\n Attribute: $LOGGED_UTILITY_STREAM\n" + loggedUtilityStream + "\n");
-                            }
-                            break;
+                        DisplayTree(filesystem, item.entryNumber, newIndent + (i < count - 1 ? "|  " : "   "), seenPaths, itemPath, false);
                     }
                 }
-                int attrLength = BitConverter.ToInt32(mftEntry, currentOffset + 4); 
-                if (attrLength <= 0) // Sanity check to prevent infinite loop
-                    break;
-                currentOffset += attrLength; // Move to the next attribute
-
-                if (currentOffset >= logicalSize) // Safety check
-                    break;
-            }
-            if (shell != true)
-            {
-                Console.WriteLine(mftTable); // prints mftTable
-            }
-            return null;
-        }
-
-        private static int FindTargetBytesOffset(byte[] fileBytes, byte[] targetBytes, int startOffset) // used to find all instances of FILE header for entry
-        {
-            for (int i = startOffset; i <= fileBytes.Length - targetBytes.Length; i++)
-            {
-                bool match = true;
-                for (int j = 0; j < targetBytes.Length; j++)
+                else
                 {
-                    if (fileBytes[i + j] != targetBytes[j])
-                    {
-                        match = false;
-                        break;
-                    }
+                    Console.WriteLine($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}  (Entry: {item.entryNumber})");
                 }
-                if (match) return i;
             }
-            return -1;
         }
-    }
 
-    class Execution
-    {
-        static void asciiArt()
+        public static void RunShell(List<byte[]> mftEntries)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(@"
-        M   M  FFFFF  TTTTT  
-        MM MM  F        T    
-        M M M  FFF      T    
-        M   M  F        T    
-        M   M  F        T ");
+            Console.Write("\nWelcome to the MFT Shell. Please pass the command '");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine(@"
-AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ  EEEEE  RRRRR  
-A   A  NN  N  A   A  L      Y Y      Z    E      R   R 
-AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
-A   A  N  NN  A   A  L       Y     Z      E      R R   
-A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR 
-    ");
+            Console.Write("help");
             Console.ResetColor();
-            Console.WriteLine(@"             by CyberYom");
-        }
+            Console.Write("' for more info. Type '");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write("exit");
+            Console.ResetColor();
+            Console.WriteLine("' to quit.\n");
 
-        static void firstRun()
-        {
-            Console.WriteLine("\nWelcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu.");
-        }
+            var DisplayContents = Logic.DisplayContents; // function in parseAttrs
+            var filesystem = Logic.filesystem; // defined in parseAttrs
+            bool isRunning = true; // for exit command
 
-        static void help()
-        {
-            Console.WriteLine("\n+------------------------------------+ Help Page +------------------------------------+\n");
-            Console.WriteLine("Info:\n| This tool is meant to gather and parse data from the NTFS file $MTF. \n| It is intended to display results of all data in table format, \n| offering both readable and raw data.\n");
-            Console.WriteLine("| To parse an MFT file, simply pass an MFT file to the tool\n└───────./MFTAnalyzer.exe C:\\path\\to\\$MFT\n\n");
-            Console.WriteLine("Flags:");
-            Console.WriteLine("| -sn \n└───────./MFTAnalyzer.exe $MFT -sn filename\n\t- Search for a specific file entry based off file name\n");
-            Console.WriteLine("| -sm \n└───────./MFTAnalyzer.exe $MFT -sm ENTRYNUMBER\n\t- Search for a specific file entry based off MFT file entry number\n");
-            Console.WriteLine("| --shell \n└───────./MFTAnalyzer.exe $MFT --shell\n\t- Enter a shell with the MFT file\n\n");
-            Console.WriteLine("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n");
-            Console.WriteLine("Version: 1.0.0");
-            Console.WriteLine("Author: CyberYom");
-            Console.WriteLine("https://github.com/cyberyom/MFTAnalyzer");
-        }
-
-        static void Main(string[] args)
-        {
-            bool shellArgumentPresent = args.Contains("--shell");
-            asciiArt();
-
-            // setting strings to initialize $MFT passed
-            string filePath = args.Length > 0 ? args[0] : null;
-            string fullPath = filePath != null ? Path.GetFullPath(filePath) : null;
-
-            if (args.Length == 1 && args[0] == "-h")
-            {
-                help();
-            }
-            else if (shellArgumentPresent)
-            {
-                ProcessShellArgument(fullPath); // Process shell argument separately, as this wont output anything to screen
-            }
-            else
-            {
-                ProcessFlags(args, fullPath); // Handle other arguments, not added yet tho
-            }
-        }
-
-        static void ProcessShellArgument(string fullPath)
-        {
-            Console.WriteLine("| Version: 1.0.0\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------");
-            if (fullPath != null)
-            {
-                WarnIfLargeFile(fullPath); // Warn if the file is large
-                Logic.extractMFT(fullPath, null, null, true); // Pass true for the shell flag
-            }
-            Shell.RunShell(); // Start the shell after processing the MFT
-        }
-
-        static void ProcessFlags(string[] args, string fullPath)
-        {
-            bool? searchName = Array.IndexOf(args, "-sn") != -1 ? true : null;
-            bool? searchMFT = Array.IndexOf(args, "-sm") != -1 ? true : null;
-
-            if (fullPath != null && !args.Contains("--shell"))
-            {
-                WarnIfLargeFile(fullPath); // Warn if the file is large, applicable for non-shell operations too
-                Logic.extractMFT(fullPath, searchName, searchMFT, false); // shell flag false, as this is in the else statement
-            }
-        }
-
-        static void WarnIfLargeFile(string filePath)
-        {
-            FileInfo fileInfo = new FileInfo(filePath);
-            long sizeInBytes = fileInfo.Length;
-            const long thresholdSize = 100000000; // 100 MB 
-
-            if (sizeInBytes > thresholdSize)
+            while (isRunning)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("Warning");
+                Console.Write("MFT Shell");
                 Console.ResetColor();
-                Console.Write($": The file you are trying to parse is large (");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(sizeInBytes);
-                Console.ResetColor();
-                Console.WriteLine(" bytes). Processing may take some time.\n");
+                Console.Write(" > ");
+
+                string input = Console.ReadLine().Trim();
+                string[] parts = input.Split(new[] { ' ' }, 2);
+                string command = parts[0].ToLower();
+                string argument = parts.Length > 1 ? parts[1] : null;
+                bool catflag = false;
+
+                switch (command.ToLower()) //handle all forms of caps lock
+                {
+                    case "exit":
+                        Console.WriteLine("Exiting...");
+                        isRunning = false;
+                        break;
+
+                    case "help":
+                        help(); // help
+                        break;
+
+                    case "tree":
+                        Console.WriteLine("Command " + command + " was run on " + argument + "\n"); int rootMFT;
+                        if (string.IsNullOrWhiteSpace(argument))
+                        {
+                            rootMFT = 5; // MFT root
+                        }
+                        else
+                        {
+                            rootMFT = FindMFTEntryByFolderName(filesystem, argument); // sets the root dir for tree to be the file passed 
+                            if (rootMFT == -1)
+                            {
+                                Console.WriteLine($"Folder '{argument}' not found.");
+                                break;
+                            }
+                        }
+                        DisplayTree(filesystem, rootMFT);
+                        break;
+
+                    case "ls": // view contents of directories
+                        Console.WriteLine("Command " + command + " was run on " + argument + "\n"); int mftFolder;
+                        if (string.IsNullOrWhiteSpace(argument))
+                        {
+                            mftFolder = 5;
+                        }
+                        else
+                        {
+                            mftFolder = FindMFTEntryByFolderName(filesystem, argument);
+                            if (mftFolder == -1)
+                            {
+                                Console.WriteLine($"Folder '{argument}' not found.");
+                                break;
+                            }
+                        }
+                        DisplayContents(filesystem, mftFolder);
+                        break;
+
+                    // find files
+                    case "find":
+                        Console.WriteLine("Command " + command + " was run on " + argument + "\n"); if (string.IsNullOrWhiteSpace(argument))
+                        {
+                            Console.WriteLine("Please specify a file name to find.");
+                        }
+                        else
+                        {
+                            HashSet<string> foundPaths = new HashSet<string>();
+                            FindFilePaths(filesystem, argument, 5, "", foundPaths); // Assuming 5 is the root MFT entry
+                            foreach (var path in foundPaths)
+                            {
+                                Console.WriteLine(path); // Print each unique path
+                            }
+                        }
+                        break;
+
+                    case "cat":
+                        catflag = true;
+                        Console.WriteLine("Command " + command + " was run on " + argument + "\n");
+                        if (string.IsNullOrWhiteSpace(argument))
+                        {
+                            Console.WriteLine("Please enter an MFT number to view.");
+                        }
+                        else
+                        {
+                            // Try to parse the argument to an integer
+                            if (int.TryParse(argument, out int mftNumber))
+                            {
+                                // Call catMFT with the parsed MFT number
+                                parseMFT(mftEntries, mftNumber, catflag);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid MFT number. Please enter a valid number.");
+                            }
+                        }
+                        break;
+
+                    case "carve":
+                        Console.WriteLine("Command " + command + " was run on " + argument + "\n");
+                        if (string.IsNullOrWhiteSpace(argument))
+                        {
+                            Console.WriteLine("Please enter an MFT number to view.");
+                        }
+                        else
+                        {
+                            if (int.TryParse(argument, out int mftNumber))
+                            {
+                                // Assuming parseMFT can handle mftNumber and catflag correctly.
+                                parseMFT(mftEntries, mftNumber, catflag);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid MFT number. Please enter a valid number.");
+                            }
+                        }
+                        break;
+
+
+                    case "clear":
+                        Console.Clear(); // This will clear the console
+                        break;
+
+                    default:
+                        if (!string.IsNullOrWhiteSpace(command))
+                        {
+                            Console.WriteLine($"Unknown command: {command}");
+                        }
+                        break;
+                }
             }
         }
     }
