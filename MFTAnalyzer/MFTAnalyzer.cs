@@ -20,7 +20,7 @@ namespace MFTAnalyzer
 {
     public class Execution
     {
-        static void asciiArt()
+        static void Intro()
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(@"
@@ -30,7 +30,7 @@ namespace MFTAnalyzer
         M   M  F        T    
         M   M  F        T ");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine(@"
+            Console.Write(@"
 AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ   EEEE   RRRR  
 A   A  NN  N  A   A  L      Y Y      Z    E      R   R 
 AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
@@ -39,13 +39,10 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
 ");
             Console.ResetColor();
             Console.WriteLine("             by CyberYom\n");
+            Console.WriteLine("| Version: 1.0.0\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------\n");
         }
 
-        static void firstRun()
-        {
-            Console.WriteLine("\nWelcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu.");
-        }
-
+        static void firstRun() { Console.WriteLine("Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu."); }
         static void help()
         {
             Console.WriteLine("\n+------------------------------------+ Help Page +------------------------------------+\n");
@@ -64,18 +61,22 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
 
         public static void Main(string[] args)
         {
-            asciiArt();
+            Intro();
+            if (args.Length == 0)
+            {
+                firstRun();
+                return; 
+            }
+            bool shellArgumentPresent = args.Contains("--shell");
             string filePath = args.Length > 0 ? args[0] : null;
             string fullPath = filePath != null ? Path.GetFullPath(filePath) : null;
-            bool shellArgumentPresent = args.Contains("--shell");
-            string subdirectoryName = "extractions";
-            string outputPath = "MFTAnalyzerOutput.txt"; // Default output file name
+            string subdirectoryName = "Extractions";
+            string outputPath = "MFTAnalyzerOutput.txt"; 
             string currentDirectory = Directory.GetCurrentDirectory();
             string extractionDirectoryPath = Path.Combine(currentDirectory, subdirectoryName);
-            if (!Directory.Exists(extractionDirectoryPath))
-            {
-                Directory.CreateDirectory(extractionDirectoryPath);
-            }
+           
+
+            if (!Directory.Exists(extractionDirectoryPath)) { Directory.CreateDirectory(extractionDirectoryPath); }
             string fullOutputPath = Path.Combine(extractionDirectoryPath, outputPath);
 
             try
@@ -87,20 +88,14 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
                     Console.SetOut(doubleWriter);
                     if (args.Length == 1 && args[0] == "-h") { help(); }
                     else if (shellArgumentPresent) { ProcessShellArgument(fullPath); }
-                    else { ProcessFlags(args, fullPath); } // Handle other arguments, not added yet tho
-
+                    else { ProcessFlags(args, fullPath); }
                 }
             }
-            finally
-            {
-                Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
-            }
+            finally { Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true }); }
 
         }
-
         static void ProcessShellArgument(string fullPath)
         {
-            Console.WriteLine("| Version: 1.0.0\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------\n");
             if (fullPath != null)
             {
                 WarnIfLargeFile(fullPath);
@@ -119,19 +114,13 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
             if (searchName)
             {
                 int index = Array.IndexOf(args, "-sn");
-                if (index + 1 < args.Length)
-                {
-                    filename = args[index + 1];
-                }
+                if (index + 1 < args.Length) { filename = args[index + 1]; }
             }
 
             if (searchMFT)
             {
                 int index = Array.IndexOf(args, "-sm");
-                if (index + 1 < args.Length && int.TryParse(args[index + 1], out int num))
-                {
-                    mftNumber = num;
-                }
+                if (index + 1 < args.Length && int.TryParse(args[index + 1], out int num)) { mftNumber = num; }
             }
 
             if (fullPath != null && !args.Contains("--shell"))
