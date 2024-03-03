@@ -148,8 +148,6 @@ More documentation will be provided soon in the wiki...
 The development of this project would not be possible without the help of the following individuals. Their contributions are greatly appreciated.
 - Ali Hadi, Champlain College.
 - Solomon Ince, Freelance.
-- Amy Keigwin, Champlain College
-- Sam Guinther, The Leahy Center
 - Joachim Metz, Google, [Documentation](https://github.com/libyal/libfsntfs/blob/main/documentation/New%20Technologies%20File%20System%20(NTFS).asciidoc)
 
 
