@@ -11,13 +11,14 @@ using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.IO.Enumeration;
 using System.Threading;
+using Windows.Foundation.Metadata;
+using System.Collections.Specialized;
 
 namespace MFTAnalyzer
 {
     public class Logic
     {
         static readonly byte[] targetBytes = { 0x46, 0x49, 0x4C, 0x45 }; // FILE header
-
         public static readonly Dictionary<int, string> attrTypeMap = new Dictionary<int, string> // dictionary of MFT Attributes
         {
             { 0x10, "$STANDARD_INFORMATION" },
@@ -43,7 +44,6 @@ namespace MFTAnalyzer
 
             List<byte[]> mftEntries = new List<byte[]>(); // make list for mft entries
 
-
             if (!File.Exists(filePath))
             {
                 Console.WriteLine("File does not exist");
@@ -59,15 +59,12 @@ namespace MFTAnalyzer
             while (startSearchOffset < fileBytes.Length)
             {
                 entryCounter++;
-
                 int offset = findOffset(fileBytes, targetBytes, startSearchOffset); // loops to find all FILE headers
-
                 if (offset == -1)
                 {
                     if (!foundAny) Console.WriteLine("No MFT Entry extracted or an error occurred.");
                     break;
                 }
-
                 foundAny = true;
 
                 //find the logical size of the entry
@@ -94,39 +91,59 @@ namespace MFTAnalyzer
                     break;
                 }
             }
-
-            if (shell == true) { Console.WriteLine("    Total Number of MFT Entries Carved: " + entryCounter + "\n"); } //counter
+            int updatedCounter = entryCounter - 1;
+            if (shell == true) { Console.WriteLine($"    Total Number of MFT Entries Carved: \u001b[32m{updatedCounter}\u001b[0m \n"); } //counter
             if (shell == true) { Thread.Sleep(1000); } //pause before moving on, adds 1 second of processing time
-            if (shell == true) { Console.WriteLine("    Analyzing MFT Entries...\n"); } // verbosity for console output, indicia
-                                                                                        // this is becayse certian variables can be passed and certian ones wont be
 
-            parseMFT(mftEntries, searchName, searchMFTNumber, shell);
+            parseMFT(mftEntries, searchName, searchMFTNumber, shell, updatedCounter);
             return mftEntries;
         }
 
-        public static void parseMFT(List<byte[]> mftEntries, string searchName, int searchMFTNumber, bool? shell) // this function sets variables needed to parse mft entries. Maybe this is faster inside of parse Attrs) // this function sets variables needed to parse mft entries. Maybe this is faster inside of parse Attrs
+        public static void parseMFT(List<byte[]> mftEntries, string searchName, int searchMFTNumber, bool? shell, int entryNumbers)
         {
+            Console.CursorVisible = false;
+            Console.CancelKeyPress += (sender, e) => { Console.CursorVisible = true; };
+            if (shell == true) { Console.WriteLine("    Analyzing MFT Entries..."); }
+
+            int counter = 0;
+            bool completed = false;
+
+            // Prepare for dynamic console update without interfering with the main processing
+            Task updateTask = Task.Run(() =>
+            {
+                while (!completed)
+                {
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    if (shell == true) { Console.Write($"        {counter} / {entryNumbers}   "); }
+                    Thread.Sleep(10); // Update every quarter second
+                }
+            });
+
             foreach (var mftEntry in mftEntries)
             {
+                counter++;
                 short firstAttr = BitConverter.ToInt16(mftEntry, 20);
                 int logicalSize = BitConverter.ToInt32(mftEntry, 24);
                 uint mftNumber = BitConverter.ToUInt32(mftEntry, 44);
                 bool matchFound = false;
 
                 parseAttrs(mftEntry, firstAttr, logicalSize, mftNumber, searchName, searchMFTNumber, shell, mftEntries);
-
-                if (matchFound)
-                {
-                    break; // Add only matched entries to the list
-                }
+                if (matchFound) { break; } //used to find specific mft entries
             }
+            completed = true;
+            updateTask.Wait(); // Wait for the final update to complete before proceeding
+
+            Console.SetCursorPosition(0, Console.CursorTop);
+            if (shell == true) { Console.Write($"        \u001b[32m{counter} / {entryNumbers}\u001b[0m   "); }
+
+            Console.CursorVisible = true; // Restore cursor visibility
         }
 
         public static Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem = new Dictionary<int, List<(string, int)>>(); // Dictionary initialization for SHELL (only gets populated if shell is enabled)
+
         public static void DisplayContents(Dictionary<int, List<(string extractedName, int entryNumber)>> filesystem, int mftFolder, HashSet<int> seenEntries = null) // function used for commands in shell mode (needs to be here in this function because of MFT entry offsets)
         {
             if (seenEntries == null) seenEntries = new HashSet<int>();
-
             if (!filesystem.ContainsKey(mftFolder))
             {
                 Console.WriteLine("Folder not found.");
@@ -140,8 +157,7 @@ namespace MFTAnalyzer
                 {
                     continue; // Skip this item if it has already been processed
                 }
-
-                Console.WriteLine($"{item.extractedName} (Entry: {item.entryNumber})");
+                Console.WriteLine($"{item.extractedName} (\u001b[32mEntry: {item.entryNumber}\u001b[0m)");
             }
         }
 
@@ -159,27 +175,19 @@ namespace MFTAnalyzer
                 entryTable = tableInstance.entryHeader(mftEntry); // pass entryheader to table instance (this is the template for the entry header)
                 mftTable.Append(entryTable); //add the table to mftTable
             }
-
             while (currentOffset < logicalSize && currentOffset + 4 < mftEntry.Length) //starts while loop to process all mft entries
             {
                 int attrType = BitConverter.ToInt32(mftEntry, currentOffset); // sets the attribute type bytes to attrtype as integer 
-
-                if (attrType == -1)
-                    break;
+                if (attrType == -1) break; 
 
                 string attrTypeName;
-
                 if (attrTypeMap.TryGetValue(attrType, out attrTypeName)) // dictionary at top of class 'logic'
                 {
                     if (attrTypeName == "$FILE_NAME")
                     {
                         int nameSize = mftEntry[currentOffset + 88];
                         fileName = Encoding.Unicode.GetString(mftEntry, currentOffset + 90, nameSize * 2);
-                        if (!string.IsNullOrEmpty(searchName) && fileName.Equals(searchName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            fileNameMatched = true;
-                            // Optionally, break here if you only need the first match
-                        }
+                        if (!string.IsNullOrEmpty(searchName) && fileName.Equals(searchName, StringComparison.OrdinalIgnoreCase)) { fileNameMatched = true; }
                     }
 
                     switch (attrTypeName) //switch statement to handle all attributes. Note that this was a recent focus, and some things are old and new
@@ -203,15 +211,10 @@ namespace MFTAnalyzer
                             string fileNameTable = tableInstance.fileName(mftEntry, currentOffset);
                             int parentMFTnumber = BitConverter.ToInt32(mftEntry, currentOffset + 24);
                             if (shell != true) { mftTable.Append("\n Attribute: $FILE_NAME\n" + fileNameTable + "\n"); }
-
-                            if (!filesystem.ContainsKey(parentMFTnumber))
-                            {
-                                filesystem[parentMFTnumber] = new List<(string, int)>();
-                            }
+                            if (!filesystem.ContainsKey(parentMFTnumber)) { filesystem[parentMFTnumber] = new List<(string, int)>(); }
 
                             int mftNumberInt = unchecked((int)mftNumber);
                             filesystem[parentMFTnumber].Add((fileName, mftNumberInt));
-
                             break;
 
                         case "$OBJECT_ID":
@@ -294,32 +297,36 @@ namespace MFTAnalyzer
                     }
                 }
                 int attrLength = BitConverter.ToInt32(mftEntry, currentOffset + 4);
-                if (attrLength <= 0) // Sanity check to prevent infinite loop
-                    break;
+                if (attrLength <= 0) break; // Sanity check to prevent infinite loop
                 currentOffset += attrLength; // Move to the next attribute
-
-                if (currentOffset >= logicalSize) // Safety check
-                    break;
+                if (currentOffset >= logicalSize) break; // Safety check
             }
             if (!string.IsNullOrEmpty(searchName) && fileNameMatched)
             {
-                Console.WriteLine("     Showing MFT Entry for file: " + fileName + " - MFT Entry: " + mftNumber);
-                Console.WriteLine(mftTable34);
+                Console.Write("Showing MFT Entry for file: ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(fileName);
+                Console.ResetColor();
+                Console.Write(" - MFT Entry: ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(mftNumber + "\n\n");
+                Console.ResetColor();
+                Console.WriteLine(mftTable);
                 return true;
             }
-            else if (searchMFTNumber >= 0 && mftNumber != searchMFTNumber)
-            {
-                return false; // MFT number does not match, skip processing
-            }
-            else if (!string.IsNullOrEmpty(searchName))
-            {
-                return false;
-            }
+            else if (searchMFTNumber >= 0 && mftNumber != searchMFTNumber) { return false; }    
+            else if (!string.IsNullOrEmpty(searchName)) {  return false; }
             else if (shell == true) { return false; }
-            
             else
             {
-                Console.WriteLine("     Showing MFT Entry for file: " + fileName + " - MFT Entry: " + mftNumber);
+                Console.Write("Showing MFT Entry for file: ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(fileName);
+                Console.ResetColor();
+                Console.Write(" - MFT Entry: ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(mftNumber + "\n\n");
+                Console.ResetColor();
                 Console.WriteLine(mftTable);
                 return false;
             }
