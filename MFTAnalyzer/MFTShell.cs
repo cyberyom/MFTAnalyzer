@@ -19,7 +19,7 @@ namespace MFTAnalyzer
             Console.WriteLine("clear\n└────── Clear the screen\n");
             Console.WriteLine("exit\n└────── Exit the shell\n");
         }
-        private static void parseMFT(List<byte[]> mftEntries, int unitValue, bool catFlag, bool hexdumpFlag)
+        private static void parseMFT(List<byte[]> mftEntries, int unitValue, bool catFlag, bool hexdumpFlag, bool carveFlag)
         {
             bool found = false;
             foreach (var entry in mftEntries)
@@ -33,6 +33,7 @@ namespace MFTAnalyzer
                         StringBuilder mftTable = new StringBuilder();
 
                         //Initialize Variables
+                        bool dataAttributeFound = false;
                         string fileName = "";
                         string entryTable;
                         int currentOffset = BitConverter.ToInt16(entry, 20);
@@ -44,6 +45,9 @@ namespace MFTAnalyzer
                         ulong carveSize = 0;
                         string fileContent = "";
                         bool? resident = null;
+                        string dataRunHeader = "";
+                        string fileLength = "";
+                        int clusterOffset = 0;
 
                         entryTable = tableInstance.entryHeader(entry);
                         if (catFlag == true) { mftTable.Append(entryTable); }
@@ -59,7 +63,11 @@ namespace MFTAnalyzer
 
                             if (Logic.attrTypeMap.TryGetValue(attrType, out attrTypeName)) // dictionary at top of class 'logic'
                             {
-                                //try to extract filename and print for header
+                                if (attrTypeName == "$DATA")
+                                {
+                                    dataAttributeFound = true;
+                                }
+
                                 if (attrTypeName == "$FILE_NAME")
                                 {
                                     // Extract the filename
@@ -139,6 +147,12 @@ namespace MFTAnalyzer
                                             endCluster = BitConverter.ToUInt64(entry, currentOffset + 24);
                                             dataRunOffset = BitConverter.ToInt16(entry, currentOffset + 32);
                                             carveSize = BitConverter.ToUInt64(entry, currentOffset + 40);
+                                            dataRunHeader = BitConverter.ToString(entry, currentOffset + 64, 1);
+                                            fileLength = BitConverter.ToString(entry, currentOffset + 65, 1);
+                                            byte[] clusterOffsetBytes = new byte[] { entry[currentOffset + 66], entry[currentOffset + 67], entry[currentOffset + 68] };
+                                            byte[] paddedBytes = new byte[] { clusterOffsetBytes[0], clusterOffsetBytes[1], clusterOffsetBytes[2], 0 };
+                                            clusterOffset = BitConverter.ToInt32(paddedBytes, 0);
+
                                         }
                                         break;
 
@@ -196,16 +210,20 @@ namespace MFTAnalyzer
                             if (attrLength <= 0) break; // Sanity check
                             currentOffset += attrLength; // Move to next attribute 
                         }
-
+                        if (!dataAttributeFound && carveFlag == true)
+                        {
+                            Console.WriteLine("Cannot carve. File is a directory");
+                            return; // Exit the method if no $DATA attribute is found
+                        }
                         if (hexdumpFlag == true)
                         {
-                            Console.WriteLine($"      Showing hexdump for MFT Entry: \u001b[32m{fileName}\u001b[0m");
+                            Console.Write("      Showing hexdump for MFT Entry: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(fileName); Console.ResetColor(); Console.WriteLine();
                             Console.WriteLine("+-----------------------------------------------------------------+");
                             Console.WriteLine(BitConverter.ToString(entry).Replace("-", " "));
                         }
                         else if (catFlag == true)
                         {
-                            Console.WriteLine($"     Showing MFT Entry for file: \u001b[32m{fileName}\u001b[0m");
+                            Console.Write("     Showing MFT Entry for file: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(fileName); Console.ResetColor(); Console.WriteLine();
                             Console.WriteLine(mftTable);
                         }
                         else if (resident == true && catFlag != true && hexdumpFlag != true)
@@ -225,8 +243,8 @@ namespace MFTAnalyzer
                             DateTime dumpTime = DateTime.Now;
 
                             Console.WriteLine($"Data was successfully saved to '{filePath}'.");
-                            Console.WriteLine($"└────── File Size: \u001b[32m{fileSize} bytes\u001b[0m");
-                            Console.WriteLine($"└────── File Dumped At: \u001b[32m{dumpTime}\u001b[0m\n");
+                            Console.Write("└────── File Size: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write($"{fileSize} bytes"); Console.ResetColor(); Console.WriteLine();
+                            Console.Write("└────── File Dumped At: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(dumpTime); Console.ResetColor(); Console.WriteLine("\n");
                             Console.WriteLine("     Content:\n+---------------------------------------------------+");
                             Console.WriteLine(fileContent);
                         }
@@ -234,11 +252,12 @@ namespace MFTAnalyzer
                         else if (resident == false && catFlag != true && hexdumpFlag != true)
                         {
                             Console.WriteLine("Note that this file is non-resident and thus can not be carved from the $MFT.\n");
-                            Console.WriteLine($"Statistics for \u001b[32m{fileName}\u001b[0m");
-                            Console.WriteLine($"└────── Starting Cluster: \u001b[32m{startCluster}\u001b[0m");
-                            Console.WriteLine($"└────── Ending Cluster: \u001b[32m{endCluster}\u001b[0m");
-                            Console.WriteLine($"└────── Datarun Offset: \u001b[32m{dataRunOffset}\u001b[0m");
-                            Console.WriteLine($"└────── File Size to Carve: \u001b[32m{carveSize}\u001b[0m");
+                            Console.Write("Statistics for "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(fileName); Console.ResetColor(); Console.WriteLine();
+                            Console.Write("└────── Datarun Offset: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(dataRunOffset); Console.ResetColor(); Console.WriteLine();
+                            Console.Write("└────── File Size to Carve: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(carveSize); Console.ResetColor(); Console.WriteLine();
+                            Console.Write("└────── Data Run Header: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(dataRunHeader); Console.ResetColor(); Console.WriteLine();
+                            Console.Write("└────── File Length: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(fileLength); Console.ResetColor(); Console.WriteLine();
+                            Console.Write("└────── Cluster Offset: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(clusterOffset); Console.ResetColor(); Console.WriteLine();
                         }
                     }
                 }
@@ -326,11 +345,11 @@ namespace MFTAnalyzer
                 if (isFolder)
                 {
                     string newIndent = indent + (isRoot ? "" : "|  ");
-                    Console.WriteLine($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}/  (Entry: \u001b[32m{item.entryNumber}\u001b[0m)");
+                    Console.Write($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}/  (Entry: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(item.entryNumber); Console.ResetColor(); Console.WriteLine();
 
                     if (!item.extractedName.Equals(".")) { DisplayTree(filesystem, item.entryNumber, newIndent + (i < count - 1 ? "|  " : "   "), seenPaths, itemPath, false); }
                 }
-                else { Console.WriteLine($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}  (Entry: \u001b[32m{item.entryNumber}\u001b[0m)"); }
+                else { Console.Write($"{indent}{(i < count - 1 ? "|--" : "`--")}{item.extractedName}  (Entry: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(item.entryNumber); Console.ResetColor(); Console.WriteLine(")"); }
             }
         }
 
@@ -363,6 +382,7 @@ namespace MFTAnalyzer
                 string argument = parts.Length > 1 ? parts[1] : null;
                 bool catflag = false;
                 bool hexdumpFlag = false;
+                bool carveFlag = false;
 
                 switch (command.ToLower()) //handle all forms of caps lock
                 {
@@ -488,12 +508,13 @@ namespace MFTAnalyzer
                         if (string.IsNullOrWhiteSpace(argument)) { Console.WriteLine("Please enter an MFT number to view."); }
                         else
                         {
-                            if (int.TryParse(argument, out int mftNumber)) { parseMFT(mftEntries, mftNumber, catflag, hexdumpFlag); }
+                            if (int.TryParse(argument, out int mftNumber)) { parseMFT(mftEntries, mftNumber, catflag, hexdumpFlag, carveFlag); }
                             else { Console.WriteLine("Invalid MFT number. Please enter a valid number."); }
                         }
                         break;
 
                     case "carve":
+                        carveFlag = true;
                         Console.Write("Command ");
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.Write(command);
@@ -506,7 +527,7 @@ namespace MFTAnalyzer
                         
                         else
                         {
-                            if (int.TryParse(argument, out int mftNumber)) { parseMFT(mftEntries, mftNumber, catflag, hexdumpFlag); }
+                            if (int.TryParse(argument, out int mftNumber)) { parseMFT(mftEntries, mftNumber, catflag, hexdumpFlag, carveFlag); }
                          
                             else { Console.WriteLine("Invalid MFT number. Please enter a valid number."); }
                         }
@@ -525,7 +546,7 @@ namespace MFTAnalyzer
                         if (string.IsNullOrWhiteSpace(argument)) { Console.WriteLine("Please enter an MFT number to view."); }
                         else
                         {
-                            if (int.TryParse(argument, out int mftNumber)) { parseMFT(mftEntries, mftNumber, catflag, hexdumpFlag); }
+                            if (int.TryParse(argument, out int mftNumber)) { parseMFT(mftEntries, mftNumber, catflag, hexdumpFlag, carveFlag); }
                             else { Console.WriteLine("Invalid MFT number. Please enter a valid number."); }
                         }
                         break;
