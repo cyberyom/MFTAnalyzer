@@ -23,23 +23,25 @@ namespace MFTAnalyzer
         static void Intro()
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(@"
-        M   M  FFFFF  TTTTT  
-        MM MM  F        T    
-        M M M  FFF      T    
-        M   M  F        T    
-        M   M  F        T ");
+            Console.Write(@"
+                 _____  __    
+          ______/ ____\/  |_  
+         /     \   __\\   __\ 
+        |  Y Y  \  |   |  |   
+        |__|_|  /|   |__|   
+              \/");
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(@"
-AAAAA  N   N  AAAAA  L     Y   Y  ZZZZZ   EEEE   RRRR  
-A   A  NN  N  A   A  L      Y Y      Z    E      R   R 
-AAAAA  N N N  AAAAA  L       Y      Z     EEEE   RRRR  
-A   A  N  NN  A   A  L       Y     Z      E      R R   
-A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR 
+                     .__                              
+_____    ____ _____  |  | ___.__.________ ___________ 
+\__  \  /    \\__  \ |  |<   |  |\___   // __ \_  __ \
+ / __ \|   |  \/ __ \|  |_\___  | /    /\  ___/|  | \/
+(____  /___|  (____  /____/ ____|/_____ \\___  >__|   
+     \/     \/     \/     \/           \/    \/       
 ");
             Console.ResetColor();
             Console.WriteLine("             by CyberYom\n");
-            Console.WriteLine("| Version: 1.0.0\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------\n");
+            Console.WriteLine("| Version: 1.0.1\n| https://github.com/cyberyom/MFTAnalyzer\n└---------------------------------------------------------------------------\n");
         }
 
         static void firstRun() { Console.WriteLine("Welcome to MFT Analyzer. This tool is designed to parse and display MFT metadata. \nPassing -h will display a help menu."); }
@@ -54,7 +56,7 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
             Console.WriteLine("| --shell \n└───────./MFTAnalyzer.exe $MFT --shell\n\t- Enter a shell with the MFT file\n\n");
             Console.WriteLine("| -o \n└───────./MFTAnalyzer.exe $MFT -sn filename -o\n\t- Output to a text file\n");
             Console.WriteLine("Additional help:\n|Support:\n└───────https://github.com/cyberyom/MFTAnalyzer/issues\n\n");
-            Console.WriteLine("Version: 1.0.0");
+            Console.WriteLine("Version: 1.0.1");
             Console.WriteLine("Author: CyberYom");
             Console.WriteLine("https://github.com/cyberyom/MFTAnalyzer");
         }
@@ -65,35 +67,59 @@ A   A  N   N  A   A  LLLLL   Y     ZZZZZ  EEEEE  R  RR
             if (args.Length == 0)
             {
                 firstRun();
-                return; 
+                return;
             }
+
             bool shellArgumentPresent = args.Contains("--shell");
-            string filePath = args.Length > 0 ? args[0] : null;
-            string fullPath = filePath != null ? Path.GetFullPath(filePath) : null;
+            bool outputToFile = args.Contains("-o");
+            string filePath = args[0];
+            string fullPath = Path.GetFullPath(filePath);
             string subdirectoryName = "Extractions";
-            string outputPath = "MFTAnalyzerOutput.txt"; 
+            string outputPath = "MFTAnalyzerOutput.txt";
             string currentDirectory = Directory.GetCurrentDirectory();
             string extractionDirectoryPath = Path.Combine(currentDirectory, subdirectoryName);
-           
 
-            if (!Directory.Exists(extractionDirectoryPath)) { Directory.CreateDirectory(extractionDirectoryPath); }
+            if (outputToFile && !Directory.Exists(extractionDirectoryPath))
+            {
+                Directory.CreateDirectory(extractionDirectoryPath);
+            }
+
             string fullOutputPath = Path.Combine(extractionDirectoryPath, outputPath);
 
             try
             {
-                using (var fileStream = new FileStream(fullOutputPath, FileMode.Create, FileAccess.Write))
-                using (var streamWriter = new StreamWriter(fileStream))
-                using (var doubleWriter = new DoubleWriter(Console.Out, streamWriter))
+                StreamWriter streamWriter = null;
+                if (outputToFile)
                 {
-                    Console.SetOut(doubleWriter);
-                    if (args.Length == 1 && args[0] == "-h") { help(); }
-                    else if (shellArgumentPresent) { ProcessShellArgument(fullPath); }
-                    else { ProcessFlags(args, fullPath); }
+                    var fileStream = new FileStream(fullOutputPath, FileMode.Create, FileAccess.Write);
+                    streamWriter = new StreamWriter(fileStream);
+                    Console.SetOut(new DoubleWriter(Console.Out, streamWriter));
+                }
+
+                if (args.Length == 1 && args[0] == "-h")
+                {
+                    help();
+                }
+                else if (shellArgumentPresent)
+                {
+                    ProcessShellArgument(fullPath);
+                }
+                else
+                {
+                    ProcessFlags(args, fullPath);
+                }
+
+                streamWriter?.Dispose();
+            }
+            finally
+            {
+                if (outputToFile)
+                {
+                    Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
                 }
             }
-            finally { Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true }); }
-
         }
+
         static void ProcessShellArgument(string fullPath)
         {
             if (fullPath != null)
