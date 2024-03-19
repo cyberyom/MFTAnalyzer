@@ -36,6 +36,7 @@ namespace MFTAnalyzer
             { 0xD0, "$EA_INFORMATION" },
             { 0xE0, "$EA" },
             { 0xF0, "$PROPERTY_SET" },
+            { 0xFF, "End of Attribute" }
         };
 
         public static List<byte[]> extractMFT(string filePath, string searchName, int searchMFTNumber, bool? shell) //first processing period, this will extract all mft entries from a file passed 
@@ -92,8 +93,8 @@ namespace MFTAnalyzer
                 }
             }
             int updatedCounter = entryCounter - 1;
-            if (shell == true) { Console.WriteLine($"    Total Number of MFT Entries Carved: \u001b[32m{updatedCounter}\u001b[0m \n"); } //counter
-            if (shell == true) { Thread.Sleep(1000); } //pause before moving on, adds 1 second of processing time
+            if (shell == true) { Console.Write("    Total Number of MFT Entries Carved: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(updatedCounter); Console.ResetColor(); Console.WriteLine(" \n"); }
+            if (shell == true) { Thread.Sleep(1000); }
 
             parseMFT(mftEntries, searchName, searchMFTNumber, shell, updatedCounter);
             return mftEntries;
@@ -107,17 +108,21 @@ namespace MFTAnalyzer
 
             int counter = 0;
             bool completed = false;
+            Task updateTask = null;
 
-            // Prepare for dynamic console update without interfering with the main processing
-            Task updateTask = Task.Run(() =>
+            if (shell == true)
             {
-                while (!completed)
+                updateTask = Task.Run(() =>
                 {
-                    Console.SetCursorPosition(0, Console.CursorTop);
-                    if (shell == true) { Console.Write($"        {counter} / {entryNumbers}   "); }
-                    Thread.Sleep(10); // Update every quarter second
-                }
-            });
+                    while (!completed)
+                    {
+                        Console.SetCursorPosition(0, Console.CursorTop);
+                        Console.Write($"        {counter} / {entryNumbers}   ");
+                        Thread.Sleep(10);
+                    }
+                });
+            }
+
 
             foreach (var mftEntry in mftEntries)
             {
@@ -131,10 +136,10 @@ namespace MFTAnalyzer
                 if (matchFound) { break; } //used to find specific mft entries
             }
             completed = true;
-            updateTask.Wait(); // Wait for the final update to complete before proceeding
+            updateTask?.Wait();
 
             Console.SetCursorPosition(0, Console.CursorTop);
-            if (shell == true) { Console.Write($"        \u001b[32m{counter} / {entryNumbers}\u001b[0m   "); }
+            if (shell == true) { Console.ForegroundColor = ConsoleColor.Green; Console.Write($"        {counter} / {entryNumbers}   "); Console.ResetColor(); }
 
             Console.CursorVisible = true; // Restore cursor visibility
         }
@@ -155,11 +160,13 @@ namespace MFTAnalyzer
             {
                 if (!seenEntries.Add(item.entryNumber))
                 {
-                    continue; // Skip this item if it has already been processed
+                    continue; 
                 }
-                Console.WriteLine($"{item.extractedName} (\u001b[32mEntry: {item.entryNumber}\u001b[0m)");
+                Console.Write($"{item.extractedName} (Entry: "); Console.ForegroundColor = ConsoleColor.Green; Console.Write(item.entryNumber); Console.ResetColor(); Console.WriteLine(")");
             }
         }
+
+        private static readonly object consoleLock = new object();
 
         public static bool parseAttrs(byte[] mftEntry, short firstAttr, int logicalSize, uint mftNumber, string searchName, int searchMFTNumber, bool? shell, List<byte[]> mftEntries) // main function that builds the tables and rebuilds the filesystem
         {
@@ -301,17 +308,21 @@ namespace MFTAnalyzer
                 currentOffset += attrLength; // Move to the next attribute
                 if (currentOffset >= logicalSize) break; // Safety check
             }
+
             if (!string.IsNullOrEmpty(searchName) && fileNameMatched)
             {
-                Console.Write("Showing MFT Entry for file: ");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(fileName);
-                Console.ResetColor();
-                Console.Write(" - MFT Entry: ");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(mftNumber + "\n\n");
-                Console.ResetColor();
-                Console.WriteLine(mftTable);
+                lock (consoleLock)
+                {
+                    Console.Write("Showing MFT Entry for file: ");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write(fileName);
+                    Console.ResetColor();
+                    Console.Write(" - MFT Entry: ");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write(mftNumber + "\n\n");
+                    Console.ResetColor();
+                    Console.WriteLine(mftTable);
+                }
                 return true;
             }
             else if (searchMFTNumber >= 0 && mftNumber != searchMFTNumber) { return false; }    
@@ -319,15 +330,18 @@ namespace MFTAnalyzer
             else if (shell == true) { return false; }
             else
             {
-                Console.Write("Showing MFT Entry for file: ");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(fileName);
-                Console.ResetColor();
-                Console.Write(" - MFT Entry: ");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(mftNumber + "\n\n");
-                Console.ResetColor();
-                Console.WriteLine(mftTable);
+                lock (consoleLock)
+                {
+                    Console.Write("Showing MFT Entry for file: ");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write(fileName);
+                    Console.ResetColor();
+                    Console.Write(" - MFT Entry: ");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write(mftNumber + "\n\n");
+                    Console.ResetColor();
+                    Console.WriteLine(mftTable);
+                }
                 return false;
             }
         }
