@@ -98,7 +98,7 @@ namespace MFTAnalyzer
             {
                 if (!string.IsNullOrEmpty(flagDescriptions))
                     flagDescriptions += ", ";
-                flagDescriptions += "Unknown";
+                flagDescriptions += "-";
             }
             return flagDescriptions;
         }
@@ -162,13 +162,13 @@ namespace MFTAnalyzer
             string attributeFlagsDescription = tableLogic.FileAttributeFlags(attributeFlagsBytes);
 
             this.table.AddRow("Attribute Flags", tableLogic.Truncate(BitConverter.ToString(attributeFlagsBytes).Replace("-", " "), maxLength), attributeFlagsDescription); // Now calling FileAttributeFlags
-            this.table.AddRow("Max Versions", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 60, 4).Replace("-", " "), maxLength), "Unknown");
-            this.table.AddRow("Version Number", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 64, 4).Replace("-", " "), maxLength), "Unknown");
-            this.table.AddRow("Class Identifier", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 68, 4).Replace("-", " "), maxLength), "Unknown");
-            this.table.AddRow("Owner Identifier", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 72, 4).Replace("-", " "), maxLength), "Unknown");
+            this.table.AddRow("Max Versions", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 60, 4).Replace("-", " "), maxLength), "-");
+            this.table.AddRow("Version Number", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 64, 4).Replace("-", " "), maxLength), "-");
+            this.table.AddRow("Class Identifier", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 68, 4).Replace("-", " "), maxLength), "-");
+            this.table.AddRow("Owner Identifier", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 72, 4).Replace("-", " "), maxLength), "-");
             this.table.AddRow("Security Identifier", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 76, 4).Replace("-", " "), maxLength), BitConverter.ToInt32(mftEntry, currentOffset + 76));
-            this.table.AddRow("Quota Changed", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 80, 8).Replace("-", " "), maxLength), "Unknown");
-            this.table.AddRow("Update Sequence Number", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 88, 8).Replace("-", " "), maxLength), "Unknown");
+            this.table.AddRow("Quota Changed", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 80, 8).Replace("-", " "), maxLength), "-");
+            this.table.AddRow("Update Sequence Number", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 88, 8).Replace("-", " "), maxLength), "-");
             return this.table.ToMinimalString();
         }
 
@@ -244,8 +244,23 @@ namespace MFTAnalyzer
                 this.table.AddRow("Logical File Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 40, 8).Replace("-", " "), maxLength), BitConverter.ToUInt64(mftEntry, currentOffset + 40));
                 this.table.AddRow("Physical File Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 48, 8).Replace("-", " "), maxLength), BitConverter.ToUInt64(mftEntry, currentOffset + 48));
                 this.table.AddRow("Initialized Size", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 56, 8).Replace("-", " "), maxLength), BitConverter.ToUInt64(mftEntry, currentOffset + 56));
-                return table.ToMinimalString();
+                int datarunOffset = BitConverter.ToInt16(mftEntry, currentOffset + 32);
+                this.table.AddRow("Datarun Offset", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 32, 2).Replace("-", " "), maxLength), datarunOffset);
+                this.table.AddRow("Data Run Header", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 64, 1).Replace("-", ""), maxLength), mftEntry[currentOffset + 64].ToString());
+                this.table.AddRow("File Length", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 65, 1).Replace("-", ""), maxLength), mftEntry[currentOffset + 65].ToString());
+                byte[] clusterOffsetBytes = new byte[] { mftEntry[currentOffset + 66], mftEntry[currentOffset + 67], mftEntry[currentOffset + 68] };
+                byte[] paddedBytes = new byte[] { clusterOffsetBytes[0], clusterOffsetBytes[1], clusterOffsetBytes[2], 0 };
+                int clusterOffset = BitConverter.ToInt32(paddedBytes, 0);
+                this.table.AddRow("Cluster Offset", tableLogic.Truncate(BitConverter.ToString(clusterOffsetBytes).Replace("-", " "), maxLength), clusterOffset.ToString());
+                if (mftEntry[currentOffset + 64 + 5] != 0 || mftEntry[currentOffset + 64 + 6] != 0 || mftEntry[currentOffset + 64 + 7] != 0)
+                {
+                    this.table.AddRow("Data Run Header", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 64 + 5, 1).Replace("-", " "), maxLength), BitConverter.ToString(mftEntry, currentOffset + 64 + 5, 1));
+                    this.table.AddRow("File Length", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 65 + 5, 1).Replace("-", " "), maxLength), BitConverter.ToString(mftEntry, currentOffset + 65 + 5, 1));
+                    this.table.AddRow("Cluster Offset", tableLogic.Truncate(BitConverter.ToString(mftEntry, currentOffset + 66 + 5, 3).Replace("-", " "), maxLength), BitConverter.ToString(mftEntry, currentOffset + 66 + 5, 3));
+                }
             }
+
+            return table.ToMinimalString();
         }
         public string indexRoot(byte[] mftEntry, int currentOffset)
         {
