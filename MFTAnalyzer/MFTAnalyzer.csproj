@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SignAssembly>False</SignAssembly>
+    <ApplicationIcon>mft.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="mft.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Alba.CsConsoleFormat" Version="1.0.0" />
+    <PackageReference Include="ConsoleTables" Version="2.4.2" />
+  </ItemGroup>
+
+</Project>
